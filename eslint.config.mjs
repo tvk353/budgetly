@@ -1,16 +1,16 @@
-import js from "@eslint/js";
-import globals from "globals";
-import tseslint from "typescript-eslint";
+import js from '@eslint/js';
+import globals from 'globals';
+import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: [".next/**", "node_modules/**", "playwright-report/**", "coverage/**"],
+    ignores: ['.next/**', 'node_modules/**', 'playwright-report/**', 'coverage/**'],
   },
   {
-    files: ["**/*.{js,jsx,mjs,cjs,ts,tsx}"],
+    files: ['**/*.{js,jsx,mjs,cjs,ts,tsx}'],
     languageOptions: {
-      ecmaVersion: "latest",
-      sourceType: "module",
+      ecmaVersion: 'latest',
+      sourceType: 'module',
       parserOptions: {
         ecmaFeatures: {
           jsx: true,
@@ -25,6 +25,6 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended.map((config) => ({
     ...config,
-    files: ["**/*.{ts,tsx}"],
+    files: ['**/*.{ts,tsx}'],
   })),
 );

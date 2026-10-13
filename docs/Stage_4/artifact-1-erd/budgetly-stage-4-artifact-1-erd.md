@@ -336,21 +336,21 @@ erDiagram
 
 ## 5. Key cardinalities at a glance
 
-| Relationship | Cardinality | Notes |
-|---|---|---|
-| Auth user → profile | 1 to 0/1 | Profile ID mirrors Supabase Auth user ID. |
-| User ↔ workspace | many-to-many via membership | Access is determined by active membership. |
-| Workspace → invitations | 1 to many | Invitations expire in 7 days and can be revoked. |
-| Workspace → transactions | 1 to many | Ordinary expenses/refunds. |
-| Expense → linked refunds | 1 to many | Refund points to its original expense; total linked refunds are capped. |
-| Workspace → monthly budgets | 1 to many | Unique per workspace/month. |
-| Workspace → savings funds → savings transactions | 1 to many at each step | Fund balance is derived. |
-| Workspace → trackers → tracker transactions | 1 to many at each step | Tracker transactions are separate from budget transactions and store `workspace_id` plus `tracker_id`; a composite FK enforces matching ownership. |
-| Category → transactions | 1 to many | Category type must match transaction domain. |
-| Workspace → category visibility | 1 to many | Unique per workspace/category. |
-| Workspace/user → audit logs | 1 to many | Actor may be null after account deletion. |
-| Background job → export/backup detail | 1 to 0/1 for each detail type | Approved shared job model; each job should have at most one detail row of each supported type, with task type validated for consistency. |
-| Trash-eligible record → deletion metadata | Per record | Store soft-delete state on the record; no central Trash-item table. Combine types for the unified Trash view. |
+| Relationship                                     | Cardinality                   | Notes                                                                                                                                              |
+| ------------------------------------------------ | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Auth user → profile                              | 1 to 0/1                      | Profile ID mirrors Supabase Auth user ID.                                                                                                          |
+| User ↔ workspace                                 | many-to-many via membership   | Access is determined by active membership.                                                                                                         |
+| Workspace → invitations                          | 1 to many                     | Invitations expire in 7 days and can be revoked.                                                                                                   |
+| Workspace → transactions                         | 1 to many                     | Ordinary expenses/refunds.                                                                                                                         |
+| Expense → linked refunds                         | 1 to many                     | Refund points to its original expense; total linked refunds are capped.                                                                            |
+| Workspace → monthly budgets                      | 1 to many                     | Unique per workspace/month.                                                                                                                        |
+| Workspace → savings funds → savings transactions | 1 to many at each step        | Fund balance is derived.                                                                                                                           |
+| Workspace → trackers → tracker transactions      | 1 to many at each step        | Tracker transactions are separate from budget transactions and store `workspace_id` plus `tracker_id`; a composite FK enforces matching ownership. |
+| Category → transactions                          | 1 to many                     | Category type must match transaction domain.                                                                                                       |
+| Workspace → category visibility                  | 1 to many                     | Unique per workspace/category.                                                                                                                     |
+| Workspace/user → audit logs                      | 1 to many                     | Actor may be null after account deletion.                                                                                                          |
+| Background job → export/backup detail            | 1 to 0/1 for each detail type | Approved shared job model; each job should have at most one detail row of each supported type, with task type validated for consistency.           |
+| Trash-eligible record → deletion metadata        | Per record                    | Store soft-delete state on the record; no central Trash-item table. Combine types for the unified Trash view.                                      |
 
 ## 6. Decisions log — all seven modeling decisions resolved
 
@@ -386,7 +386,6 @@ erDiagram
 The ERD design baseline is complete; the remaining checks are implementation-time verification gates. This document records the seven ERD decisions and reconciled D1–D14 defaults. In particular, check household-user category scopes, per-user Drive exports, mixed pagination, idempotency retention, linked refunds, savings independence, tracker isolation, shared background job processing, tombstone-based purge reconciliation, and 30-day Trash recovery.
 
 **Stage 4 status:** ERD design complete. No PostgreSQL migrations or production database changes have been made. Any migration execution still requires separate explicit approval.
-
 
 ## 8. Reconciliation addendum — selected low-complexity category model
 

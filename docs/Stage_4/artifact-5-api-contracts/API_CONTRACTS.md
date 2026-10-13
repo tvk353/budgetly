@@ -13,13 +13,24 @@ All routes use `/api/v1`. JSON request and response bodies use UTF-8. The server
 Single-resource operations return the resource directly, unless the endpoint specifies a wrapper. Collections use a `data` array plus an endpoint-specific `page` object. The endpoint catalogue explicitly declares one pagination style per endpoint:
 
 Cursor style (transactions/history and large changing collections):
+
 ```json
 { "data": [], "page": { "style": "cursor", "limit": 20, "next_cursor": null, "has_more": false } }
 ```
 
 Page-number style (simple lists and reports):
+
 ```json
-{ "data": [], "page": { "style": "page_number", "limit": 20, "page_number": 1, "total_count": 0, "total_pages": 0 } }
+{
+  "data": [],
+  "page": {
+    "style": "page_number",
+    "limit": 20,
+    "page_number": 1,
+    "total_count": 0,
+    "total_pages": 0
+  }
+}
 ```
 
 Mutation responses include the persisted representation where useful. `204 No Content` is used for successful operations with no response body.
@@ -32,7 +43,11 @@ Mutation responses include the persisted representation where useful. `204 No Co
     "code": "VALIDATION_ERROR",
     "message": "The request is invalid.",
     "details": [
-      { "field": "amount", "code": "DECIMAL_FORMAT", "message": "Use a positive amount with at most two decimal places." }
+      {
+        "field": "amount",
+        "code": "DECIMAL_FORMAT",
+        "message": "Use a positive amount with at most two decimal places."
+      }
     ],
     "request_id": "req_..."
   }
@@ -43,24 +58,24 @@ Mutation responses include the persisted representation where useful. `204 No Co
 
 ### 2.3 HTTP status conventions
 
-| Status | Use |
-|---|---|
-| `200` | Successful read or mutation with response body |
-| `201` | Resource created |
-| `202` | Asynchronous job accepted |
-| `204` | Successful operation with no body |
-| `400` | Malformed request, invalid query parameter, or invalid state transition |
-| `401` | Missing/invalid authentication |
-| `403` | Authenticated but explicitly forbidden where existence disclosure is safe |
-| `404` | Missing resource or resource intentionally concealed due to lack of access |
-| `409` | Conflict, duplicate, stale state, idempotency conflict, or business-rule conflict |
-| `410` | Invitation or recovery window expired, when disclosure is safe |
-| `413` | Request body too large |
-| `415` | Unsupported content type |
-| `422` | Well-formed request that violates domain validation |
-| `429` | Rate limit exceeded; include `Retry-After` when available |
-| `500` | Unexpected server error; generic message only |
-| `503` | Temporarily unavailable dependency or maintenance; safe retry guidance |
+| Status | Use                                                                               |
+| ------ | --------------------------------------------------------------------------------- |
+| `200`  | Successful read or mutation with response body                                    |
+| `201`  | Resource created                                                                  |
+| `202`  | Asynchronous job accepted                                                         |
+| `204`  | Successful operation with no body                                                 |
+| `400`  | Malformed request, invalid query parameter, or invalid state transition           |
+| `401`  | Missing/invalid authentication                                                    |
+| `403`  | Authenticated but explicitly forbidden where existence disclosure is safe         |
+| `404`  | Missing resource or resource intentionally concealed due to lack of access        |
+| `409`  | Conflict, duplicate, stale state, idempotency conflict, or business-rule conflict |
+| `410`  | Invitation or recovery window expired, when disclosure is safe                    |
+| `413`  | Request body too large                                                            |
+| `415`  | Unsupported content type                                                          |
+| `422`  | Well-formed request that violates domain validation                               |
+| `429`  | Rate limit exceeded; include `Retry-After` when available                         |
+| `500`  | Unexpected server error; generic message only                                     |
+| `503`  | Temporarily unavailable dependency or maintenance; safe retry guidance            |
 
 ### 2.4 Pagination and filtering
 
@@ -98,87 +113,103 @@ Mutation responses include the persisted representation where useful. `204 No Co
 
 ## 3. Authentication and account
 
-| Method & path | Purpose | Success | Expected errors |
-|---|---|---:|---|
-| `POST /auth/otp/request` | Send sign-in OTP | `202` | `400`, `429`, `503` |
-| `POST /auth/otp/verify` | Verify single-use OTP and establish session | `200` | `400`, `401`, `410`, `429` |
-| `POST /auth/logout` | Revoke current session | `204` | `401` |
-| `POST /auth/logout-all` | Revoke all sessions, with explicit current-session behavior | `204` | `401`, `403` |
-| `GET /me` | Current profile and session context | `200` | `401` |
-| `PATCH /me` | Update allowed profile fields only | `200` | `400`, `401`, `422` |
-| `POST /account/deletion-requests` | Request account deletion; disable sign-in per approved flow | `202` | `401`, `409`, `422` |
-| `POST /account/recovery` | Start account recovery within 30 days | `202` | `401`, `404`, `410`, `429` |
+| Method & path                     | Purpose                                                     | Success | Expected errors            |
+| --------------------------------- | ----------------------------------------------------------- | ------: | -------------------------- |
+| `POST /auth/otp/request`          | Send sign-in OTP                                            |   `202` | `400`, `429`, `503`        |
+| `POST /auth/otp/verify`           | Verify single-use OTP and establish session                 |   `200` | `400`, `401`, `410`, `429` |
+| `POST /auth/logout`               | Revoke current session                                      |   `204` | `401`                      |
+| `POST /auth/logout-all`           | Revoke all sessions, with explicit current-session behavior |   `204` | `401`, `403`               |
+| `GET /me`                         | Current profile and session context                         |   `200` | `401`                      |
+| `PATCH /me`                       | Update allowed profile fields only                          |   `200` | `400`, `401`, `422`        |
+| `POST /account/deletion-requests` | Request account deletion; disable sign-in per approved flow |   `202` | `401`, `409`, `422`        |
+| `POST /account/recovery`          | Start account recovery within 30 days                       |   `202` | `401`, `404`, `410`, `429` |
 
 ### OTP request
+
 Request:
+
 ```json
 { "email": "user@example.com" }
 ```
+
 Rules: normalize email consistently; do not disclose whether an account exists; enforce five-minute expiry, single use, maximum three verification attempts, 60-second resend cooldown, and per-account/IP rate limits. Return a generic accepted response.
 
 ### OTP verification
+
 Request:
+
 ```json
 { "email": "user@example.com", "otp": "123456" }
 ```
+
 Rules: OTP must be single-use and unexpired. Invalid, expired, or exhausted attempts return a generic authentication error. Provider session cookies/tokens must use secure settings appropriate to deployment.
 
 ### Profile patch
+
 Allowed request:
+
 ```json
 { "display_name": "Vinod" }
 ```
+
 Only `display_name` is client-editable through this endpoint. Unknown or protected fields (role, email verification, account status) are rejected.
 
 ## 4. Workspace and membership
 
-| Method & path | Purpose | Success | Expected errors |
-|---|---|---:|---|
-| `GET /workspaces` | List workspaces current user can access | `200` | `401` |
-| `POST /workspaces` | Create personal or household workspace through trusted server operation | `201` | `401`, `409`, `422` |
-| `GET /workspaces/{workspaceId}` | Workspace details | `200` | `401`, `404` |
-| `PATCH /workspaces/{workspaceId}` | Update permitted workspace metadata | `200` | `401`, `404`, `422` |
-| `GET /workspaces/{workspaceId}/members` | List active members | `200` | `401`, `404` |
-| `POST /workspaces/{workspaceId}/invitations` | Create invite; household only | `201` | `401`, `404`, `409`, `422`, `429` |
-| `GET /workspaces/{workspaceId}/invitations` | List current invitations | `200` | `401`, `404` |
-| `DELETE /workspaces/{workspaceId}/invitations/{invitationId}` | Revoke invite | `204` | `401`, `404` |
-| `POST /invitations/{token}/join` | Join after identity/email verification | `200` | `401`, `404`, `409`, `410` |
-| `DELETE /workspaces/{workspaceId}/members/{userId}` | Remove member; owner-only and guarded | `204` | `401`, `404`, `409`, `422` |
-| `POST /workspaces/{workspaceId}/ownership-transfer` | Transfer ownership with re-authentication | `200` | `401`, `404`, `409`, `422` |
-| `POST /workspaces/{workspaceId}/deletion-requests` | Start 30-day workspace recovery window | `202` | `401`, `404`, `409`, `422` |
-| `POST /workspaces/{workspaceId}/recovery` | Recover within 30 days if currently authorized | `200` | `401`, `404`, `410`, `409` |
+| Method & path                                                 | Purpose                                                                 | Success | Expected errors                   |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------- | ------: | --------------------------------- |
+| `GET /workspaces`                                             | List workspaces current user can access                                 |   `200` | `401`                             |
+| `POST /workspaces`                                            | Create personal or household workspace through trusted server operation |   `201` | `401`, `409`, `422`               |
+| `GET /workspaces/{workspaceId}`                               | Workspace details                                                       |   `200` | `401`, `404`                      |
+| `PATCH /workspaces/{workspaceId}`                             | Update permitted workspace metadata                                     |   `200` | `401`, `404`, `422`               |
+| `GET /workspaces/{workspaceId}/members`                       | List active members                                                     |   `200` | `401`, `404`                      |
+| `POST /workspaces/{workspaceId}/invitations`                  | Create invite; household only                                           |   `201` | `401`, `404`, `409`, `422`, `429` |
+| `GET /workspaces/{workspaceId}/invitations`                   | List current invitations                                                |   `200` | `401`, `404`                      |
+| `DELETE /workspaces/{workspaceId}/invitations/{invitationId}` | Revoke invite                                                           |   `204` | `401`, `404`                      |
+| `POST /invitations/{token}/join`                              | Join after identity/email verification                                  |   `200` | `401`, `404`, `409`, `410`        |
+| `DELETE /workspaces/{workspaceId}/members/{userId}`           | Remove member; owner-only and guarded                                   |   `204` | `401`, `404`, `409`, `422`        |
+| `POST /workspaces/{workspaceId}/ownership-transfer`           | Transfer ownership with re-authentication                               |   `200` | `401`, `404`, `409`, `422`        |
+| `POST /workspaces/{workspaceId}/deletion-requests`            | Start 30-day workspace recovery window                                  |   `202` | `401`, `404`, `409`, `422`        |
+| `POST /workspaces/{workspaceId}/recovery`                     | Recover within 30 days if currently authorized                          |   `200` | `401`, `404`, `410`, `409`        |
 
 Workspace create request:
+
 ```json
 { "kind": "personal", "name": "Personal" }
 ```
+
 `kind` is `personal` or `household`. Personal creation must enforce one active member/owner. Household workspaces allow more than two active members but exactly one owner. A user's default workspace selection is application preference, not authorization.
 
 Invitation create request:
+
 ```json
 { "email": "partner@example.com", "delivery_method": "email" }
 ```
+
 Invitation expires after seven days, is revocable, and is bound to a household workspace. A shareable link is a secret bearer token; store only a hash, redact from logs, and never place it in analytics. Joining requires verified identity and matching invitation constraints. Revoke all invitations when workspace deletion begins; recovery must not reactivate them.
 
 Ownership transfer request:
+
 ```json
 { "new_owner_user_id": "uuid", "reauth_proof": "provider-bound-proof" }
 ```
+
 The `reauth_proof` must be verified server-side and never logged. New owner must be an active member. The transfer must commit atomically and preserve exactly one owner.
 
 ## 5. Categories
 
-| Method & path | Purpose | Success | Expected errors |
-|---|---|---:|---|
-| `GET /workspaces/{workspaceId}/categories` | List built-ins and custom categories from scopes linked to the workspace, filterable by transaction type | `200` | `401`, `404`, `400` |
-| `POST /workspaces/{workspaceId}/categories` | Create custom category in the workspace’s category scope | `201` | `401`, `404`, `409`, `422` |
-| `PATCH /workspaces/{workspaceId}/categories/{categoryId}` | Rename/update a custom category in the workspace’s category scope | `200` | `401`, `404`, `409`, `422` |
-| `POST /workspaces/{workspaceId}/categories/{categoryId}/archive` | Archive custom category | `200` | `401`, `404`, `409` |
-| `POST /workspaces/{workspaceId}/categories/{categoryId}/restore` | Restore archived custom category | `200` | `401`, `404`, `409` |
-| `POST /workspaces/{workspaceId}/built-in-categories/{categoryId}/visibility` | Owner-controlled workspace visibility setting | `200` | `401`, `404`, `403`, `422` |
-| `DELETE /workspaces/{workspaceId}/categories/{categoryId}` | Permanently delete if allowed by reference rules | `204` | `401`, `404`, `409` |
+| Method & path                                                                | Purpose                                                                                                  | Success | Expected errors            |
+| ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------: | -------------------------- |
+| `GET /workspaces/{workspaceId}/categories`                                   | List built-ins and custom categories from scopes linked to the workspace, filterable by transaction type |   `200` | `401`, `404`, `400`        |
+| `POST /workspaces/{workspaceId}/categories`                                  | Create custom category in the workspace’s category scope                                                 |   `201` | `401`, `404`, `409`, `422` |
+| `PATCH /workspaces/{workspaceId}/categories/{categoryId}`                    | Rename/update a custom category in the workspace’s category scope                                        |   `200` | `401`, `404`, `409`, `422` |
+| `POST /workspaces/{workspaceId}/categories/{categoryId}/archive`             | Archive custom category                                                                                  |   `200` | `401`, `404`, `409`        |
+| `POST /workspaces/{workspaceId}/categories/{categoryId}/restore`             | Restore archived custom category                                                                         |   `200` | `401`, `404`, `409`        |
+| `POST /workspaces/{workspaceId}/built-in-categories/{categoryId}/visibility` | Owner-controlled workspace visibility setting                                                            |   `200` | `401`, `404`, `403`, `422` |
+| `DELETE /workspaces/{workspaceId}/categories/{categoryId}`                   | Permanently delete if allowed by reference rules                                                         |   `204` | `401`, `404`, `409`        |
 
 Create request:
+
 ```json
 {
   "name": "Baby Expenses",
@@ -188,21 +219,23 @@ Create request:
   "compatible_types": ["expense"]
 }
 ```
+
 Name is trimmed, 1–30 non-space characters, unique case-insensitively within the household-user category scope (including archived names). Description max 200 characters. Color must be an allow-listed hex color; icon must be an allow-listed icon identifier. Built-in category names cannot be renamed or deleted. Custom categories use per-user scopes and a many-to-many `workspace_category_scopes` mapping: a personal workspace links to its owner's scope, and a household workspace links to each active member's scope. Category-scope membership controls access. Unrelated Budgetly accounts cannot read or use these categories. Built-in categories remain global. Visibility of built-in categories is workspace-specific. Archived categories remain in historical records and cannot be selected for new transactions. Category type compatibility must be enforced server-side and in database constraints.
 
 ## 6. Transactions and refunds
 
-| Method & path | Purpose | Success | Expected errors |
-|---|---|---:|---|
-| `GET /workspaces/{workspaceId}/transactions` | List active transactions (cursor pagination) | `200` | `401`, `404`, `400` |
-| `POST /workspaces/{workspaceId}/transactions` | Create expense or refund | `201` | `401`, `404`, `409`, `422`, `429` |
-| `GET /workspaces/{workspaceId}/transactions/{transactionId}` | Read transaction | `200` | `401`, `404` |
-| `PATCH /workspaces/{workspaceId}/transactions/{transactionId}` | Update allowed fields | `200` | `401`, `404`, `409`, `422` |
-| `DELETE /workspaces/{workspaceId}/transactions/{transactionId}` | Move to Trash; linked refund cascade rule applies | `204` | `401`, `404`, `409` |
-| `POST /workspaces/{workspaceId}/transactions/{transactionId}/restore` | Restore transaction and eligible linked refunds | `200` | `401`, `404`, `409`, `422` |
-| `POST /workspaces/{workspaceId}/transactions/{transactionId}/permanent-delete` | Permanently delete trashed transaction with confirmation | `204` | `401`, `404`, `409`, `422` |
+| Method & path                                                                  | Purpose                                                  | Success | Expected errors                   |
+| ------------------------------------------------------------------------------ | -------------------------------------------------------- | ------: | --------------------------------- |
+| `GET /workspaces/{workspaceId}/transactions`                                   | List active transactions (cursor pagination)             |   `200` | `401`, `404`, `400`               |
+| `POST /workspaces/{workspaceId}/transactions`                                  | Create expense or refund                                 |   `201` | `401`, `404`, `409`, `422`, `429` |
+| `GET /workspaces/{workspaceId}/transactions/{transactionId}`                   | Read transaction                                         |   `200` | `401`, `404`                      |
+| `PATCH /workspaces/{workspaceId}/transactions/{transactionId}`                 | Update allowed fields                                    |   `200` | `401`, `404`, `409`, `422`        |
+| `DELETE /workspaces/{workspaceId}/transactions/{transactionId}`                | Move to Trash; linked refund cascade rule applies        |   `204` | `401`, `404`, `409`               |
+| `POST /workspaces/{workspaceId}/transactions/{transactionId}/restore`          | Restore transaction and eligible linked refunds          |   `200` | `401`, `404`, `409`, `422`        |
+| `POST /workspaces/{workspaceId}/transactions/{transactionId}/permanent-delete` | Permanently delete trashed transaction with confirmation |   `204` | `401`, `404`, `409`, `422`        |
 
 Expense create:
+
 ```json
 {
   "type": "expense",
@@ -213,7 +246,9 @@ Expense create:
   "notes": "Weekly shop"
 }
 ```
+
 Refund create:
+
 ```json
 {
   "type": "refund",
@@ -224,11 +259,13 @@ Refund create:
   "description": "Partial refund"
 }
 ```
+
 Amounts must be greater than zero. For a linked refund, expense must be active, in the same workspace, and eligible; aggregate active linked refunds plus the new refund may not exceed the original expense amount. The category inherits from the expense at refund creation, but thereafter is independent. Unlinked refunds are allowed and still reduce net eligible expenses according to category/report rules. Refund and expense dates must not be future dates in IST. Duplicate detection is a warning, not a rejection.
 
 Update request may modify amount, date, category, description, and notes subject to rules; it cannot change workspace, creator, or record type without a dedicated transition contract. Trashed records cannot be edited; restore first. Restoring a transaction whose category was permanently deleted allows `category_id: null` only with `needs_category_correction: true`; replacement category assignment clears the flag.
 
 ### Transaction response
+
 ```json
 {
   "id": "uuid",
@@ -249,76 +286,81 @@ Update request may modify amount, date, category, description, and notes subject
 
 ## 7. Monthly budgets
 
-| Method & path | Purpose | Success | Expected errors |
-|---|---|---:|---|
-| `GET /workspaces/{workspaceId}/budgets/{yyyy-mm}` | Get month budget and calculated summary | `200` | `401`, `404`, `400` |
-| `PUT /workspaces/{workspaceId}/budgets/{yyyy-mm}` | Create/update that month budget | `200` | `401`, `404`, `409`, `422` |
-| `PATCH /workspaces/{workspaceId}/budgets/{yyyy-mm}/rollover` | Set manual non-negative rollover | `200` | `401`, `404`, `409`, `422` |
+| Method & path                                                | Purpose                                 | Success | Expected errors            |
+| ------------------------------------------------------------ | --------------------------------------- | ------: | -------------------------- |
+| `GET /workspaces/{workspaceId}/budgets/{yyyy-mm}`            | Get month budget and calculated summary |   `200` | `401`, `404`, `400`        |
+| `PUT /workspaces/{workspaceId}/budgets/{yyyy-mm}`            | Create/update that month budget         |   `200` | `401`, `404`, `409`, `422` |
+| `PATCH /workspaces/{workspaceId}/budgets/{yyyy-mm}/rollover` | Set manual non-negative rollover        |   `200` | `401`, `404`, `409`, `422` |
 
 Budget request:
+
 ```json
 { "base_budget": "50000.00", "rollover": "1500.00" }
 ```
+
 New budget creation is permitted only for the current calendar month in `Asia/Kolkata`. Past budgets can be edited; future budgets cannot be created unless product requirements change. At most one budget per workspace/month. Base budget must be positive; rollover must be zero or positive. Mid-month changes recalculate immediately.
 
 Response includes `base_budget`, `rollover`, `applicable_budget`, `eligible_expenses`, `eligible_refunds`, `net_eligible_expenses`, `available`, and `month`. `available` may be negative. Calculations must use exact numeric arithmetic and the same eligibility rules across dashboard, reports, and exports.
 
 ## 8. Savings
 
-| Method & path | Purpose | Success | Expected errors |
-|---|---|---:|---|
-| `GET /workspaces/{workspaceId}/savings-funds` | List funds and balances | `200` | `401`, `404` |
-| `POST /workspaces/{workspaceId}/savings-funds` | Create fund | `201` | `401`, `404`, `409`, `422` |
-| `PATCH /workspaces/{workspaceId}/savings-funds/{fundId}` | Rename/update allowed fields | `200` | `401`, `404`, `409`, `422` |
-| `DELETE /workspaces/{workspaceId}/savings-funds/{fundId}` | Soft-delete fund | `204` | `401`, `404`, `409` |
-| `POST /workspaces/{workspaceId}/savings-funds/{fundId}/restore` | Restore fund | `200` | `401`, `404`, `409` |
-| `POST /workspaces/{workspaceId}/savings-funds/{fundId}/transactions` | Deposit or withdrawal | `201` | `401`, `404`, `422` |
-| `DELETE /workspaces/{workspaceId}/savings-transactions/{transactionId}` | Soft-delete savings transaction | `204` | `401`, `404`, `409` |
+| Method & path                                                           | Purpose                         | Success | Expected errors            |
+| ----------------------------------------------------------------------- | ------------------------------- | ------: | -------------------------- |
+| `GET /workspaces/{workspaceId}/savings-funds`                           | List funds and balances         |   `200` | `401`, `404`               |
+| `POST /workspaces/{workspaceId}/savings-funds`                          | Create fund                     |   `201` | `401`, `404`, `409`, `422` |
+| `PATCH /workspaces/{workspaceId}/savings-funds/{fundId}`                | Rename/update allowed fields    |   `200` | `401`, `404`, `409`, `422` |
+| `DELETE /workspaces/{workspaceId}/savings-funds/{fundId}`               | Soft-delete fund                |   `204` | `401`, `404`, `409`        |
+| `POST /workspaces/{workspaceId}/savings-funds/{fundId}/restore`         | Restore fund                    |   `200` | `401`, `404`, `409`        |
+| `POST /workspaces/{workspaceId}/savings-funds/{fundId}/transactions`    | Deposit or withdrawal           |   `201` | `401`, `404`, `422`        |
+| `DELETE /workspaces/{workspaceId}/savings-transactions/{transactionId}` | Soft-delete savings transaction |   `204` | `401`, `404`, `409`        |
 
 Fund name is trimmed, 1–50 characters, unique case-insensitively within the workspace. Deposit/withdrawal amount is positive. Balance is deposits minus withdrawals; negative balance is allowed. Savings are independent of monthly budget and trackers. A soft-deleted fund's retained transactions still contribute to its balance until permanent deletion, but it is excluded from normal screens. Restore brings retained transactions back into normal views.
 
 ## 9. Trackers
 
-| Method & path | Purpose | Success | Expected errors |
-|---|---|---:|---|
-| `GET /workspaces/{workspaceId}/trackers` | List active, non-hidden trackers | `200` | `401`, `404` |
-| `POST /workspaces/{workspaceId}/trackers` | Create tracker | `201` | `401`, `404`, `409`, `422` |
-| `GET /workspaces/{workspaceId}/trackers/{trackerId}` | Read tracker and totals | `200` | `401`, `404` |
-| `PATCH /workspaces/{workspaceId}/trackers/{trackerId}` | Rename, hide/show, or reopen ended tracker | `200` | `401`, `404`, `409`, `422` |
-| `POST /workspaces/{workspaceId}/trackers/{trackerId}/end` | End tracker (read-only) | `200` | `401`, `404`, `409` |
-| `POST /workspaces/{workspaceId}/trackers/{trackerId}/transactions` | Create tracker expense/refund | `201` | `401`, `404`, `409`, `422` |
-| `DELETE /workspaces/{workspaceId}/trackers/{trackerId}` | Trash tracker and its records together | `204` | `401`, `404`, `409` |
-| `POST /workspaces/{workspaceId}/trackers/{trackerId}/restore` | Restore tracker and eligible records | `200` | `401`, `404`, `409`, `422` |
+| Method & path                                                      | Purpose                                    | Success | Expected errors            |
+| ------------------------------------------------------------------ | ------------------------------------------ | ------: | -------------------------- |
+| `GET /workspaces/{workspaceId}/trackers`                           | List active, non-hidden trackers           |   `200` | `401`, `404`               |
+| `POST /workspaces/{workspaceId}/trackers`                          | Create tracker                             |   `201` | `401`, `404`, `409`, `422` |
+| `GET /workspaces/{workspaceId}/trackers/{trackerId}`               | Read tracker and totals                    |   `200` | `401`, `404`               |
+| `PATCH /workspaces/{workspaceId}/trackers/{trackerId}`             | Rename, hide/show, or reopen ended tracker |   `200` | `401`, `404`, `409`, `422` |
+| `POST /workspaces/{workspaceId}/trackers/{trackerId}/end`          | End tracker (read-only)                    |   `200` | `401`, `404`, `409`        |
+| `POST /workspaces/{workspaceId}/trackers/{trackerId}/transactions` | Create tracker expense/refund              |   `201` | `401`, `404`, `409`, `422` |
+| `DELETE /workspaces/{workspaceId}/trackers/{trackerId}`            | Trash tracker and its records together     |   `204` | `401`, `404`, `409`        |
+| `POST /workspaces/{workspaceId}/trackers/{trackerId}/restore`      | Restore tracker and eligible records       |   `200` | `401`, `404`, `409`, `422` |
 
 Tracker create request:
+
 ```json
 { "name": "Maternity Expenses", "description": "Pregnancy-related spending" }
 ```
+
 Trackers have no required start/end dates. Ending makes a tracker read-only until reopened. Hidden trackers are excluded from normal screens and reports; explicit hidden-tracker views may include them. Tracker transactions store `workspace_id` and `tracker_id`; both must match. Tracker category compatibility is enforced. Tracker records do not affect monthly budget totals.
 
 ## 10. Trash and audit history
 
-| Method & path | Purpose | Success | Expected errors |
-|---|---|---:|---|
-| `GET /workspaces/{workspaceId}/trash` | Combined paginated Trash view | `200` | `401`, `404`, `400` |
-| `POST /workspaces/{workspaceId}/trash/{recordType}/{recordId}/restore` | Restore supported record type | `200` | `401`, `404`, `409`, `422` |
-| `POST /workspaces/{workspaceId}/trash/{recordType}/{recordId}/permanent-delete` | Permanently delete with confirmation | `204` | `401`, `404`, `409`, `422` |
-| `GET /workspaces/{workspaceId}/audit-events` | Read permitted audit history | `200` | `401`, `404`, `400` |
+| Method & path                                                                   | Purpose                              | Success | Expected errors            |
+| ------------------------------------------------------------------------------- | ------------------------------------ | ------: | -------------------------- |
+| `GET /workspaces/{workspaceId}/trash`                                           | Combined paginated Trash view        |   `200` | `401`, `404`, `400`        |
+| `POST /workspaces/{workspaceId}/trash/{recordType}/{recordId}/restore`          | Restore supported record type        |   `200` | `401`, `404`, `409`, `422` |
+| `POST /workspaces/{workspaceId}/trash/{recordType}/{recordId}/permanent-delete` | Permanently delete with confirmation |   `204` | `401`, `404`, `409`, `422` |
+| `GET /workspaces/{workspaceId}/audit-events`                                    | Read permitted audit history         |   `200` | `401`, `404`, `400`        |
 
 Trash response items have `record_type`, `record_id`, `workspace_id`, `deleted_at`, `purge_after`, and a safe display summary. `recordType` is an enum, not an arbitrary table name. Restore is allowed only during the 30-day window unless the record has a different explicitly approved lifecycle. Permanent deletion requires an explicit confirmation field/token and removes audit entries associated with the permanently deleted financial record per the approved retention rule. Audit events are not client-editable. Retention is one year except associated financial audit entries deleted with the permanent purge.
 
 ## 11. Reports and exports
 
-| Method & path | Purpose | Success | Expected errors |
-|---|---|---:|---|
-| `GET /workspaces/{workspaceId}/reports/summary` | Summary for date range (page-number pagination where collection-shaped) | `200` | `401`, `404`, `400` |
-| `GET /workspaces/{workspaceId}/reports/categories` | Category breakdown | `200` | `401`, `404`, `400` |
-| `POST /workspaces/{workspaceId}/exports` | Create user-requested export job | `202` | `401`, `404`, `409`, `422`, `429` |
-| `GET /workspaces/{workspaceId}/exports` | List export jobs current user may see | `200` | `401`, `404` |
-| `GET /workspaces/{workspaceId}/exports/{exportId}` | Export job status | `200` | `401`, `404` |
-| `POST /workspaces/{workspaceId}/exports/{exportId}/download` | Authorize and issue short-lived download URL | `200` | `401`, `404`, `409`, `410` |
+| Method & path                                                | Purpose                                                                 | Success | Expected errors                   |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------- | ------: | --------------------------------- |
+| `GET /workspaces/{workspaceId}/reports/summary`              | Summary for date range (page-number pagination where collection-shaped) |   `200` | `401`, `404`, `400`               |
+| `GET /workspaces/{workspaceId}/reports/categories`           | Category breakdown                                                      |   `200` | `401`, `404`, `400`               |
+| `POST /workspaces/{workspaceId}/exports`                     | Create user-requested export job                                        |   `202` | `401`, `404`, `409`, `422`, `429` |
+| `GET /workspaces/{workspaceId}/exports`                      | List export jobs current user may see                                   |   `200` | `401`, `404`                      |
+| `GET /workspaces/{workspaceId}/exports/{exportId}`           | Export job status                                                       |   `200` | `401`, `404`                      |
+| `POST /workspaces/{workspaceId}/exports/{exportId}/download` | Authorize and issue short-lived download URL                            |   `200` | `401`, `404`, `409`, `410`        |
 
 Export request:
+
 ```json
 {
   "data_types": ["transactions", "budgets", "savings", "trackers"],
@@ -326,19 +368,20 @@ Export request:
   "format": "csv"
 }
 ```
+
 One workspace per export job. Dates are inclusive in IST and `start_date <= end_date`. Export only active records; each data type is a separate CSV file. Filenames include workspace, data type, and export date. Only an authenticated currently authorized user can initiate/download. Do not expose permanent public URLs. Signed download URLs must be short-lived and issued after re-checking current membership and job ownership/access. Export job status: `pending`, `running`, `completed`, `failed`; retries are idempotent. Job errors are sanitized.
 
 Annual export: scheduled for each January for the previous calendar year, all approved data types/history. Generate a separate recipient-specific export for each user and each workspace they are currently authorized to access, and store it in that user’s own authorized Google Drive year folder. Shared Household data may be duplicated for both members. Never share Drive credentials, destination tokens, or private links across users. Recheck recipient authorization at scheduling, generation, and delivery. Email only links to exports the recipient is authorized to access. Annual files are retained until the user deletes them. The daily-capable hosting scheduler is not an exact-time guarantee; missed runs must be detected and retried.
 
 ## 12. Settings and account management
 
-| Method & path | Purpose | Success | Expected errors |
-|---|---|---:|---|
-| `GET /settings` | Read user preferences | `200` | `401` |
-| `PATCH /settings` | Update permitted preferences, including default workspace | `200` | `401`, `422` |
-| `POST /account/sessions/revoke` | Revoke selected session(s) | `204` | `401`, `422` |
-| `GET /account/deletion-requests/{requestId}` | Check deletion/recovery state | `200` | `401`, `404` |
-| `POST /account/deletion-requests/{requestId}/cancel` | Cancel pending deletion inside permitted window | `200` | `401`, `404`, `409`, `410` |
+| Method & path                                        | Purpose                                                   | Success | Expected errors            |
+| ---------------------------------------------------- | --------------------------------------------------------- | ------: | -------------------------- |
+| `GET /settings`                                      | Read user preferences                                     |   `200` | `401`                      |
+| `PATCH /settings`                                    | Update permitted preferences, including default workspace |   `200` | `401`, `422`               |
+| `POST /account/sessions/revoke`                      | Revoke selected session(s)                                |   `204` | `401`, `422`               |
+| `GET /account/deletion-requests/{requestId}`         | Check deletion/recovery state                             |   `200` | `401`, `404`               |
+| `POST /account/deletion-requests/{requestId}/cancel` | Cancel pending deletion inside permitted window           |   `200` | `401`, `404`, `409`, `410` |
 
 Default workspace is a preference and cannot grant access to a workspace. Sign-out-all must immediately revoke sessions. Recovery requires email verification and must restore access only subject to current authorization rules.
 
@@ -373,7 +416,6 @@ Remaining gates before implementation:
 - Implement and test idempotency cleanup/replay behavior, recipient-specific Drive export workflow, and per-endpoint pagination declarations.
 
 This remains a contract draft. No OpenAPI validation or tests have been run as part of this update.
-
 
 ## Reconciliation defaults for implementation
 

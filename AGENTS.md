@@ -1,9 +1,11 @@
 # Budgetly — Coding Agent Instructions
 
 ## Project purpose
+
 Budgetly is a private, mobile-first household expense tracker for two users. Its tagline is “Spend wisely. Save confidently.”
 
 ## Source of truth
+
 Before implementing a feature, consult the relevant approved documents under `docs/`.
 
 - Stage 1: product ideation and scope.
@@ -16,6 +18,7 @@ Follow the latest explicitly approved decisions and reconciled design. If docume
 Do not treat design drafts as proof that implementation or tests have passed.
 
 ## Technology
+
 - Next.js with TypeScript and App Router.
 - pnpm only.
 - Tailwind CSS.
@@ -26,7 +29,9 @@ Do not treat design drafts as proof that implementation or tests have passed.
 - Vercel for deployment.
 
 ## UI
+
 Use the approved Budgetly palette:
+
 - Primary: #176B57
 - Background: #FAF9F6
 - Soft green: #8CBF9F
@@ -39,6 +44,7 @@ Use the approved Budgetly palette:
 Follow the Stitch designs as visual references while preserving approved product requirements.
 
 ## Development rules
+
 1. Inspect existing files before editing.
 2. Implement small, focused changes.
 3. Write or update tests alongside each feature.
@@ -51,9 +57,11 @@ Follow the Stitch designs as visual references while preserving approved product
 10. Report assumptions, unresolved conflicts, and any deviations from approved documents.
 
 ## Financial correctness
+
 Preserve the approved Budgetly rules for expenses, refunds, monthly budgets, savings, trackers, workspaces, trash, and audit history. Consult the requirements and database/API documents before changing financial behavior.
 
 ## Git and CI
+
 Use feature branches and pull requests. The intended GitHub Actions pipeline must run linting, TypeScript checks, unit tests, and Playwright tests. Keep the workflow consistent with the actual package scripts and committed pnpm lockfile.
 
 <!-- BEGIN:nextjs-agent-rules -->

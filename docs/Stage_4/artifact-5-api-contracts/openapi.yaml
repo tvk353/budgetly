@@ -79,7 +79,11 @@ paths:
                 required: [user, session]
                 properties:
                   user: { $ref: '#/components/schemas/UserSummary' }
-                  session: { type: object, description: Provider-defined session metadata; never return secrets unnecessarily. }
+                  session:
+                    {
+                      type: object,
+                      description: Provider-defined session metadata; never return secrets unnecessarily.,
+                    }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '410': { $ref: '#/components/responses/Gone' }
@@ -401,7 +405,20 @@ components:
       additionalProperties: false
     Transaction:
       type: object
-      required: [id, workspace_id, type, amount, currency, date, category_id, needs_category_correction, created_at, updated_at, version]
+      required:
+        [
+          id,
+          workspace_id,
+          type,
+          amount,
+          currency,
+          date,
+          category_id,
+          needs_category_correction,
+          created_at,
+          updated_at,
+          version,
+        ]
       properties:
         id: { type: string, format: uuid }
         workspace_id: { type: string, format: uuid }
@@ -454,7 +471,17 @@ components:
       additionalProperties: false
     BudgetSummary:
       type: object
-      required: [month, base_budget, rollover, applicable_budget, eligible_expenses, eligible_refunds, net_eligible_expenses, available]
+      required:
+        [
+          month,
+          base_budget,
+          rollover,
+          applicable_budget,
+          eligible_expenses,
+          eligible_refunds,
+          net_eligible_expenses,
+          available,
+        ]
       properties:
         month: { type: string, pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$' }
         base_budget: { $ref: '#/components/schemas/Amount' }
@@ -475,7 +502,11 @@ components:
           type: array
           minItems: 1
           uniqueItems: true
-          items: { type: string, enum: [transactions, budgets, savings, trackers, categories, audit_history] }
+          items:
+            {
+              type: string,
+              enum: [transactions, budgets, savings, trackers, categories, audit_history],
+            }
         period:
           type: object
           required: [start_date, end_date]

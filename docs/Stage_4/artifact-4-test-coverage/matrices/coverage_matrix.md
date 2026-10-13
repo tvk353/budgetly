@@ -4,14 +4,14 @@ The companion CSV is the source of truth for case IDs and status. The suite is i
 
 ## P0 — Release blockers
 
-| Area | Required coverage |
-|---|---|
-| RLS | Unrelated workspace cannot read, insert, update, or delete records; removed member loses access; user cannot self-promote or modify membership directly |
-| Refunds | Cross-workspace link rejected; refund cannot exceed expense; concurrent partial refunds remain capped; refund totals affect budget correctly |
-| Budget | Duplicate workspace/month budget rejected; negative base/rollover rejected; future month creation blocked by service/database boundary |
-| Deletion | Restore/purge deadlines enforced; parent/child Trash behavior atomic; purge retry is idempotent; tombstones prevent resurrection |
-| Exports | Cross-workspace export request denied; unauthorized/removed member cannot download; output contains only eligible active rows |
-| Privileged operations | Authenticated role cannot read/write background jobs, backup runs, tombstones, or forge audit events |
+| Area                  | Required coverage                                                                                                                                       |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| RLS                   | Unrelated workspace cannot read, insert, update, or delete records; removed member loses access; user cannot self-promote or modify membership directly |
+| Refunds               | Cross-workspace link rejected; refund cannot exceed expense; concurrent partial refunds remain capped; refund totals affect budget correctly            |
+| Budget                | Duplicate workspace/month budget rejected; negative base/rollover rejected; future month creation blocked by service/database boundary                  |
+| Deletion              | Restore/purge deadlines enforced; parent/child Trash behavior atomic; purge retry is idempotent; tombstones prevent resurrection                        |
+| Exports               | Cross-workspace export request denied; unauthorized/removed member cannot download; output contains only eligible active rows                           |
+| Privileged operations | Authenticated role cannot read/write background jobs, backup runs, tombstones, or forge audit events                                                    |
 
 ## P1 — Required before private beta
 
@@ -30,7 +30,6 @@ The companion CSV is the source of truth for case IDs and status. The suite is i
 - Not run: all SQL and integration tests.
 - Blocked pending finalization: exact RPCs, worker contract, schema/policy reconciliation, fixture harness, local test environment.
 
-
 ## Reconciliation additions (not executed)
 
 - CAT-SCOPE-01: scope members can read/manage custom categories across their Personal and Shared Household workspaces.
@@ -40,7 +39,6 @@ The companion CSV is the source of truth for case IDs and status. The suite is i
 - IDEM-01: same key and fingerprint replays; changed fingerprint conflicts; terminal result retained at least 24 hours.
 - PAGE-01: cursor-based transaction/history lists and page-number simple lists/reports obey default 20/max 100 and reject mixed pagination parameters.
 - JOB-STATUS-01: lifecycle state is stored only on `background_jobs`; details do not expose independent writable status.
-
 
 ## Reconciliation scenarios to include (not executed)
 

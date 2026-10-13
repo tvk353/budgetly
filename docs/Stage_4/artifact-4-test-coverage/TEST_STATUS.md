@@ -14,6 +14,7 @@
 Before implementation readiness, bind tests to the final schema/functions, remove placeholders, and review the test matrix. Any test execution must be separately authorized and must use a disposable local Supabase/PostgreSQL environment with synthetic fixtures only.
 
 Record future runs only after explicit approval:
+
 - Date/time:
 - Git commit / schema version:
 - Supabase/PostgreSQL version:

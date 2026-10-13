@@ -1,6 +1,7 @@
 # Implementation notes
 
 ## Policy design principles
+
 - Enable RLS on every public table.
 - Use explicit grants plus RLS; RLS policies alone do not grant privileges.
 - Use `auth.uid()` as the identity source for authenticated requests.
@@ -10,6 +11,7 @@
 - Use fixed `search_path` and schema-qualified references in `SECURITY DEFINER` functions.
 
 ## Recommended RPC boundaries (not implemented here)
+
 1. `create_personal_workspace(...)`: atomically create workspace + owner membership.
 2. `create_household_workspace(...)`: atomically create workspace + owner membership.
 3. `invite_workspace_member(...)`: validate membership/permissions, normalize email, store token hash, enforce expiry and rate limits.
@@ -24,6 +26,7 @@
 12. `write_audit_event(...)`: callable only by trusted triggers/server routines.
 
 ## Testing sequence
+
 1. Run Artifact 2 schema in a disposable local Supabase/Postgres instance.
 2. Apply this RLS policy draft to that disposable instance.
 3. Run pgTAP tests and add fixtures for two unrelated households, a multi-member household, a Personal workspace, a removed member, and a non-member.
@@ -32,7 +35,6 @@
 6. Review query plans for membership helper functions and add indexes if necessary.
 7. Only then revise the final migration bundle. Never test destructive operations on production.
 
-
 ## Reconciliation decisions (12 October 2026)
 
 - D1: custom categories are household-user scoped, not app-wide; built-ins remain global.
@@ -40,7 +42,6 @@
 - D3: idempotency records are server-only and retained at least 24 hours after terminal completion.
 - D4: pagination is mixed by endpoint; this does not change RLS but list authorization remains workspace/scope-based.
 - Job lifecycle status is authoritative in `background_jobs`; export/backup detail tables must not independently mutate status.
-
 
 ## Low-complexity implementation baseline
 

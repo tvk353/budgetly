@@ -3,6 +3,7 @@
 Do not treat this artifact as approved until each item is reviewed.
 
 ## Contract consistency
+
 - [ ] All routes use `/api/v1`; path names and resource IDs match the schema.
 - [ ] Every mutation specifies authentication, authorization, validation, success status, and failure status.
 - [ ] Amounts are represented as decimal strings; calculations use exact numeric types.
@@ -11,6 +12,7 @@ Do not treat this artifact as approved until each item is reviewed.
 - [ ] List routes enforce limit 20 by default, max 100, and stable cursor semantics.
 
 ## Authorization
+
 - [ ] Every workspace route checks current active membership and workspace lifecycle state.
 - [ ] RLS remains enabled; service-role usage is restricted to server-only code.
 - [ ] Global categories are not mistaken for workspace-owned data.
@@ -19,6 +21,7 @@ Do not treat this artifact as approved until each item is reviewed.
 - [ ] Account/workspace recovery respects the 30-day window and tombstones.
 
 ## Financial invariants
+
 - [ ] Linked refunds are serialized/locked and cannot exceed original expense total.
 - [ ] Expense deletion/restoration handles linked refunds according to approved cascade rules.
 - [ ] Budget creation is current-month only; past budgets are editable; future budget creation is rejected.
@@ -27,6 +30,7 @@ Do not treat this artifact as approved until each item is reviewed.
 - [ ] Savings balances include soft-deleted fund transactions until permanent deletion.
 
 ## Schema alignment
+
 - [ ] Queue lifecycle status has one source of truth.
 - [ ] Category NULL/correction flag rules align with SQL constraints.
 - [ ] Tracker transaction composite foreign key aligns with final table and index names.
@@ -34,10 +38,10 @@ Do not treat this artifact as approved until each item is reviewed.
 - [ ] API payload fields align with final database column names and enum values.
 
 ## Execution safety
+
 - [ ] No tests were run against a database as part of drafting this artifact.
 - [ ] No migrations were applied and no database was changed.
 - [ ] OpenAPI/schema validation and implementation tests are still pending.
-
 
 ## Reconciliation checks
 

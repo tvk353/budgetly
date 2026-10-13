@@ -9,6 +9,7 @@
 ### 1. Business operations need transactional contracts
 
 The current schema/RLS drafts do not by themselves fully implement:
+
 - Refund row locking and cap enforcement under concurrency.
 - Atomic expense-plus-refunds Trash transitions.
 - Workspace/account deletion and restoration cascades.
@@ -50,6 +51,7 @@ These must be implemented as narrowly scoped server-only RPCs or trusted service
 ## Go/no-go gates
 
 Before any deployment:
+
 1. Reconcile all SQL table/function/policy names.
 2. Implement and test transactional RPC contracts.
 3. Run the full suite against a disposable local Supabase stack.
@@ -58,14 +60,12 @@ Before any deployment:
 6. Review RLS with a second-person security review.
 7. Only then consider staging deployment; production is a separate approval.
 
-
 ## Reconciled owner decisions — additional test requirements
 
 - Category scope: a scope member can read/use the custom categories shared by that scope across Personal and Shared Household workspaces; an unrelated authenticated user cannot read, create into, mutate, or delete that scope’s custom categories. Built-ins remain globally readable. Scope merge on household join must handle duplicate normalized names safely.
 - Annual Drive export: two household members receive independently authorized exports to their own Drive destinations; one user cannot access the other user’s credentials, destination token, or private links. Removing a member before generation/delivery must be handled according to current authorization.
 - Idempotency: same key + same fingerprint replays the stored result; same key + different fingerprint returns `409 IDEMPOTENCY_KEY_REUSED`; terminal results remain replayable for at least 24 hours; pending jobs do not expire early.
 - Pagination: cursor endpoints reject malformed/filter-mismatched cursors; page-number endpoints validate page and limit; both enforce default 20 and max 100.
-
 
 ## Reconciliation scenarios to include (not executed)
 

@@ -1,14 +1,14 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
-import { budgetlyBrand, demoEmail } from "@/lib/mock-data";
+import { budgetlyBrand, demoEmail } from '@/lib/mock-data';
 
 export function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState(demoEmail);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -17,11 +17,11 @@ export function LoginForm() {
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!emailPattern.test(normalized)) {
-      setError("Enter a valid email address.");
+      setError('Enter a valid email address.');
       return;
     }
 
-    setError("");
+    setError('');
     router.push(`/verify?email=${encodeURIComponent(normalized)}`);
   };
 
@@ -33,11 +33,16 @@ export function LoginForm() {
       <h2 className="mt-3 text-3xl font-semibold leading-tight text-[var(--color-main-text)]">
         Log in to your workspace
       </h2>
-      <p className="mt-3 text-sm leading-6 text-[var(--color-secondary-text)]">{budgetlyBrand.tagline}</p>
+      <p className="mt-3 text-sm leading-6 text-[var(--color-secondary-text)]">
+        {budgetlyBrand.tagline}
+      </p>
 
       <form className="mt-7 space-y-5" onSubmit={handleSubmit}>
         <div>
-          <label htmlFor="email" className="mb-2 block text-sm font-medium text-[var(--color-main-text)]">
+          <label
+            htmlFor="email"
+            className="mb-2 block text-sm font-medium text-[var(--color-main-text)]"
+          >
             Email address
           </label>
           <input
@@ -52,7 +57,9 @@ export function LoginForm() {
         </div>
 
         {error ? (
-          <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+          <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </p>
         ) : null}
 
         <button

@@ -1,4 +1,5 @@
 # Budgetly — Stage 4 Artifact 2
+
 ## PostgreSQL table definitions and migration design
 
 **Status:** Stage 4 design baseline complete; SQL is a non-executed draft and is not approved for direct production execution.
@@ -16,7 +17,7 @@
 - `MIGRATION_PLAN.md` — ordering, assumptions, review notes, and what is deliberately excluded.
 - `SCHEMA_REVIEW_CHECKLIST.md` — pre-implementation checks.
 
-These are migration *files*, not a database change. They have not been executed.
+These are migration _files_, not a database change. They have not been executed.
 
 ## Important scope boundary
 
@@ -36,11 +37,9 @@ All application tables live in `public`. Names are snake_case. State columns use
 - The annual export/backup scheduler and Google Drive/SMTP integrations are application/worker concerns, not solved by table DDL alone.
 - The schema assumes a workspace can be `personal` or `household`. A household may have any number of active members but exactly one active owner; a personal workspace has exactly one active owner/member.
 
-
 ## Reconciliation update — 12 October 2026
 
 Product-owner decisions incorporated: custom categories use household-user scope (not app-wide); annual Google Drive exports are generated independently for each authorized user into that user’s own Drive; idempotency results are retained for at least 24 hours after terminal completion; pagination is mixed by endpoint (cursor for transactions/history, page-number for simple lists/reports; default 20, maximum 100). Background job lifecycle status is owned by `background_jobs`. This remains design-only: no tests were executed and no migrations/database changes were made.
-
 
 ## Reconciliation decisions (design draft)
 

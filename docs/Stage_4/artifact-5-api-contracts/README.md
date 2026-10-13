@@ -21,7 +21,6 @@
 5. Authorization failures should not leak whether an inaccessible resource exists; use `404` where appropriate.
 6. These contracts do not authorize direct database access from the client or bypass RLS.
 
-
 ## Reconciliation update — 12 October 2026
 
 Product-owner decisions incorporated: custom categories use household-user scope (not app-wide); annual Google Drive exports are generated independently for each authorized user into that user’s own Drive; idempotency results are retained for at least 24 hours after terminal completion; pagination is mixed by endpoint (cursor for transactions/history, page-number for simple lists/reports; default 20, maximum 100). Background job lifecycle status is owned by `background_jobs`. This remains design-only: no tests were executed and no migrations/database changes were made.

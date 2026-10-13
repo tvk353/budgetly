@@ -14,22 +14,22 @@ This does **not** mean the SQL has been proven executable or the application is 
 
 ## 2. Product-owner decisions (resolved)
 
-| Decision | Final choice | Contract |
-|---|---|---|
-| D1 — Custom category scope | Option A: household-user scope, not app-wide | Each user has a category scope; personal workspace links to its owner's scope; household workspace links to each active member's scope. Unrelated accounts cannot access it. Built-ins remain global. |
-| D2 — Annual Google Drive exports | Option A: per-user Drive | Generate a separate export for each recipient and authorized workspace into that recipient's own private Drive destination. Recheck authorization at generation and delivery/download. |
-| D3 — Idempotency retention | At least 24 hours | Scope by authenticated user + operation/route + workspace where applicable. Persist request fingerprint and replay result. Same request replays; different request with same key returns `409 IDEMPOTENCY_KEY_REUSED`. Pending operations do not expire before terminal completion. |
-| D4 — Pagination | Mixed | Cursor pagination for transactions/history and other large, changing collections. Page-number pagination for simple lists and reports. Default 20, maximum 100. Each endpoint uses exactly one style. |
-| D5 — Category collisions and membership | No row merges | Duplicate names in different user scopes remain separate; disambiguate in UI using category owner. Join/leave updates scope membership and workspace-scope links transactionally. Historical IDs are not rewritten. |
-| D6 — Privileged operations | Next.js server handlers + narrow PostgreSQL functions | No separate backend service or message broker. Service-role credentials stay server-side. Database functions are limited to operations needing atomicity or trusted lifecycle transitions. |
-| D7 — Background processing | One durable DB queue + one daily Vercel Cron route | `background_jobs` is the sole lifecycle status source. Detail tables store only task-specific inputs/results. Process bounded batches, retry idempotently, and detect overdue jobs. |
-| D8 — Refund concurrency | Lock original expense | Linked refund create/update locks the original expense row and validates the aggregate in the same transaction. |
-| D9 — Trash/deletion | Separate mechanisms for separate lifecycles | Ordinary Trash uses per-record soft-delete fields; account/workspace lifecycle uses existing request tables plus `deletion_tombstones`. Purge is idempotent and tombstones prevent backup resurrection. |
-| D10 — Export security | Private, recipient-bound exports | No public Drive links. Download requires Budgetly authentication and current authorization. Drive credentials are stored encrypted server-side and never in logs/job rows. CSV export is not a full database backup. |
-| D11 — Rate limits | Configurable app-level limits | OTP cooldown 60 seconds and max 3 verification attempts remain approved. Starting defaults: OTP sends 5/account/hour and 20/IP/hour; invitations 5/user/hour and 20/IP/hour; general writes 60/user/minute. Return `429` and `Retry-After`; keep limits configurable. |
-| D12 — API errors and contracts | Stable error envelope | `{ error: { code, message, request_id, details? } }`; no SQL text/secrets in responses. The human-readable API catalogue is authoritative for the full route set; the OpenAPI draft is a machine-readable subset pending expansion/validation before implementation. |
-| D13 — Migration approach | Expand, verify, then switch | Additive migrations first; then constraints/indexes/functions; then RLS/grants; then application route switch. Use disposable local environment, staging verification, and verified recovery before destructive changes. |
-| D14 — Testing | Complete plan now, execute only with separate approval | Test definitions and matrices are design artifacts. No tests are run in this completion pass. Before implementation readiness, replace harness placeholders and run tests only in a disposable local Supabase/PostgreSQL environment after explicit approval. |
+| Decision                                | Final choice                                           | Contract                                                                                                                                                                                                                                                                            |
+| --------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1 — Custom category scope              | Option A: household-user scope, not app-wide           | Each user has a category scope; personal workspace links to its owner's scope; household workspace links to each active member's scope. Unrelated accounts cannot access it. Built-ins remain global.                                                                               |
+| D2 — Annual Google Drive exports        | Option A: per-user Drive                               | Generate a separate export for each recipient and authorized workspace into that recipient's own private Drive destination. Recheck authorization at generation and delivery/download.                                                                                              |
+| D3 — Idempotency retention              | At least 24 hours                                      | Scope by authenticated user + operation/route + workspace where applicable. Persist request fingerprint and replay result. Same request replays; different request with same key returns `409 IDEMPOTENCY_KEY_REUSED`. Pending operations do not expire before terminal completion. |
+| D4 — Pagination                         | Mixed                                                  | Cursor pagination for transactions/history and other large, changing collections. Page-number pagination for simple lists and reports. Default 20, maximum 100. Each endpoint uses exactly one style.                                                                               |
+| D5 — Category collisions and membership | No row merges                                          | Duplicate names in different user scopes remain separate; disambiguate in UI using category owner. Join/leave updates scope membership and workspace-scope links transactionally. Historical IDs are not rewritten.                                                                 |
+| D6 — Privileged operations              | Next.js server handlers + narrow PostgreSQL functions  | No separate backend service or message broker. Service-role credentials stay server-side. Database functions are limited to operations needing atomicity or trusted lifecycle transitions.                                                                                          |
+| D7 — Background processing              | One durable DB queue + one daily Vercel Cron route     | `background_jobs` is the sole lifecycle status source. Detail tables store only task-specific inputs/results. Process bounded batches, retry idempotently, and detect overdue jobs.                                                                                                 |
+| D8 — Refund concurrency                 | Lock original expense                                  | Linked refund create/update locks the original expense row and validates the aggregate in the same transaction.                                                                                                                                                                     |
+| D9 — Trash/deletion                     | Separate mechanisms for separate lifecycles            | Ordinary Trash uses per-record soft-delete fields; account/workspace lifecycle uses existing request tables plus `deletion_tombstones`. Purge is idempotent and tombstones prevent backup resurrection.                                                                             |
+| D10 — Export security                   | Private, recipient-bound exports                       | No public Drive links. Download requires Budgetly authentication and current authorization. Drive credentials are stored encrypted server-side and never in logs/job rows. CSV export is not a full database backup.                                                                |
+| D11 — Rate limits                       | Configurable app-level limits                          | OTP cooldown 60 seconds and max 3 verification attempts remain approved. Starting defaults: OTP sends 5/account/hour and 20/IP/hour; invitations 5/user/hour and 20/IP/hour; general writes 60/user/minute. Return `429` and `Retry-After`; keep limits configurable.               |
+| D12 — API errors and contracts          | Stable error envelope                                  | `{ error: { code, message, request_id, details? } }`; no SQL text/secrets in responses. The human-readable API catalogue is authoritative for the full route set; the OpenAPI draft is a machine-readable subset pending expansion/validation before implementation.                |
+| D13 — Migration approach                | Expand, verify, then switch                            | Additive migrations first; then constraints/indexes/functions; then RLS/grants; then application route switch. Use disposable local environment, staging verification, and verified recovery before destructive changes.                                                            |
+| D14 — Testing                           | Complete plan now, execute only with separate approval | Test definitions and matrices are design artifacts. No tests are run in this completion pass. Before implementation readiness, replace harness placeholders and run tests only in a disposable local Supabase/PostgreSQL environment after explicit approval.                       |
 
 ## 3. Canonical data and security rules
 
@@ -74,16 +74,16 @@ This does **not** mean the SQL has been proven executable or the application is 
 
 ## 4. Cross-artifact consistency map
 
-| Concern | ERD | PostgreSQL draft | RLS/security | Test design | API contract |
-|---|---|---|---|---|---|
-| Category scopes and membership | Per-user scopes + workspace-scope link | `category_scopes`, `category_scope_members`, `workspace_category_scopes` | Scope helper; no app-wide custom-category read | Join/leave, unrelated-user denial, duplicate labels | Category endpoints document owner-scope and collision behavior |
-| Category purge/restore | Nullable category correction state | Delete trigger blocks active references; flags trashed references | Purge via trusted operation only | Active-reference rejection and trashed restore correction | Stable conflict/correction errors |
-| Refund cap | Same-workspace linked expense | Locking trigger/function design | Server/RPC write boundary | Multi-session concurrency test planned | Idempotency and refund conflict contract |
-| Job lifecycle | One queue + detail rows | Queue status is authoritative | No direct client writes | Job/detail mismatch and retry tests planned | Status reads queue state |
-| Deletion/recovery | Trash + tombstones | Soft-delete fields + lifecycle tables | Trusted transactional lifecycle functions | Idempotent purge and no-resurrection tests planned | Recovery windows/errors documented |
-| Exports | Per-user recipient | Recipient-bound export job | Private storage; auth recheck | Removed-member download denial planned | Authenticated download endpoint |
-| Idempotency | Idempotency record entity | Unique scoped key + fingerprint/replay fields | Server-only | Same-key replay and mismatch tests planned | `Idempotency-Key`, 409 conflict |
-| Pagination/errors | API behavior | N/A | Workspace checks before list | Boundary/invalid-combination tests planned | Mixed style and stable error envelope |
+| Concern                        | ERD                                    | PostgreSQL draft                                                         | RLS/security                                   | Test design                                               | API contract                                                   |
+| ------------------------------ | -------------------------------------- | ------------------------------------------------------------------------ | ---------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------- |
+| Category scopes and membership | Per-user scopes + workspace-scope link | `category_scopes`, `category_scope_members`, `workspace_category_scopes` | Scope helper; no app-wide custom-category read | Join/leave, unrelated-user denial, duplicate labels       | Category endpoints document owner-scope and collision behavior |
+| Category purge/restore         | Nullable category correction state     | Delete trigger blocks active references; flags trashed references        | Purge via trusted operation only               | Active-reference rejection and trashed restore correction | Stable conflict/correction errors                              |
+| Refund cap                     | Same-workspace linked expense          | Locking trigger/function design                                          | Server/RPC write boundary                      | Multi-session concurrency test planned                    | Idempotency and refund conflict contract                       |
+| Job lifecycle                  | One queue + detail rows                | Queue status is authoritative                                            | No direct client writes                        | Job/detail mismatch and retry tests planned               | Status reads queue state                                       |
+| Deletion/recovery              | Trash + tombstones                     | Soft-delete fields + lifecycle tables                                    | Trusted transactional lifecycle functions      | Idempotent purge and no-resurrection tests planned        | Recovery windows/errors documented                             |
+| Exports                        | Per-user recipient                     | Recipient-bound export job                                               | Private storage; auth recheck                  | Removed-member download denial planned                    | Authenticated download endpoint                                |
+| Idempotency                    | Idempotency record entity              | Unique scoped key + fingerprint/replay fields                            | Server-only                                    | Same-key replay and mismatch tests planned                | `Idempotency-Key`, 409 conflict                                |
+| Pagination/errors              | API behavior                           | N/A                                                                      | Workspace checks before list                   | Boundary/invalid-combination tests planned                | Mixed style and stable error envelope                          |
 
 ## 5. Artifact inventory and status
 
@@ -96,6 +96,7 @@ This does **not** mean the SQL has been proven executable or the application is 
 ## 6. Stage 4 exit criteria
 
 **Met for design-stage completion:**
+
 - [x] Core data model and business rules documented.
 - [x] Product decisions D1–D4 recorded.
 - [x] Remaining defaults D5–D14 selected to favor low complexity and speed.
@@ -104,6 +105,7 @@ This does **not** mean the SQL has been proven executable or the application is 
 - [x] No implementation/database work was performed.
 
 **Deferred to the implementation-readiness gate (not blockers for beginning Stage 5 UI/UX):**
+
 - [ ] Complete OpenAPI coverage and validate OpenAPI/JSON schemas.
 - [ ] Reconcile all SQL/RLS object names and grants with a static review.
 - [ ] Complete fixture harness and remove test placeholders.

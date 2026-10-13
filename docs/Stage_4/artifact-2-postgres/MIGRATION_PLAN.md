@@ -61,7 +61,6 @@ No migration was run. No database was created, changed, or contacted.
 - Supabase's `auth.users` schema is external to these migration files.
 - RLS is intentionally omitted here to keep this artifact focused; **do not deploy client access until RLS is reviewed and enabled**.
 
-
 ## Reconciliation deployment path
 
 1. Add `workspace_category_scopes` and indexes as additive changes.

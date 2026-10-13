@@ -16,15 +16,15 @@ Primary risk areas:
 
 ## 2. Test layers
 
-| Layer | Purpose | Suitable cases |
-|---|---|---|
-| PostgreSQL constraints | Reject invalid persisted states | Amount precision/range, required fields, unique month budget, composite tracker FK, category correction flag |
-| pgTAP + RLS | Validate row visibility and permitted writes as `authenticated` | Workspace isolation, member parity, removed-member denial, direct client privilege denial |
-| Transactional database/RPC tests | Verify multi-row atomicity and invariants | Refund caps, owner transfer, cascade soft-delete/restore, purge idempotency |
-| API integration | Verify identity, validation, status codes, response filtering | Export creation, invite/recovery flows, pagination, auth failure |
-| Multi-session concurrency | Verify race conditions | Simultaneous linked refunds, two budget creates, concurrent owner transfer and removal |
-| Worker integration | Verify asynchronous workflows | Export retries, failed jobs, backup reconciliation, cleanup retries |
-| UI tests (later) | Confirm useful interaction and error handling | Correction prompts, budget display, restore flows |
+| Layer                            | Purpose                                                         | Suitable cases                                                                                               |
+| -------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| PostgreSQL constraints           | Reject invalid persisted states                                 | Amount precision/range, required fields, unique month budget, composite tracker FK, category correction flag |
+| pgTAP + RLS                      | Validate row visibility and permitted writes as `authenticated` | Workspace isolation, member parity, removed-member denial, direct client privilege denial                    |
+| Transactional database/RPC tests | Verify multi-row atomicity and invariants                       | Refund caps, owner transfer, cascade soft-delete/restore, purge idempotency                                  |
+| API integration                  | Verify identity, validation, status codes, response filtering   | Export creation, invite/recovery flows, pagination, auth failure                                             |
+| Multi-session concurrency        | Verify race conditions                                          | Simultaneous linked refunds, two budget creates, concurrent owner transfer and removal                       |
+| Worker integration               | Verify asynchronous workflows                                   | Export retries, failed jobs, backup reconciliation, cleanup retries                                          |
+| UI tests (later)                 | Confirm useful interaction and error handling                   | Correction prompts, budget display, restore flows                                                            |
 
 ## 3. Priority definitions
 
@@ -35,6 +35,7 @@ Primary risk areas:
 ## 4. Shared synthetic fixture model
 
 Use synthetic users:
+
 - `user_a`: owner of `personal_a`, active household member and owner of `household_ab`.
 - `user_b`: active member of `household_ab`, owner of `personal_b`.
 - `user_c`: unrelated user and owner of `household_c`.
@@ -47,6 +48,7 @@ All fixture IDs and amounts must be deterministic and generated in a disposable 
 ## 5. Business rules to assert
 
 ### Refunds
+
 - Expense and refund amounts are positive exact decimals with two-decimal precision.
 - Linked refund and expense belong to the same workspace.
 - Linked refunds are associated with an expense; an expense cannot itself be a refund target.
@@ -58,6 +60,7 @@ All fixture IDs and amounts must be deterministic and generated in a disposable 
 - Restored transactions with a permanently deleted category have `category_id IS NULL` and `needs_category_correction = true`.
 
 ### Budgets
+
 - At most one budget per workspace and calendar month.
 - A new budget can be created only for the current `Asia/Kolkata` calendar month; past budgets may be edited; future budget creation is rejected.
 - Base budget and rollover cannot be negative.
@@ -69,6 +72,7 @@ All fixture IDs and amounts must be deterministic and generated in a disposable 
 - Hidden trackers and savings transactions do not affect the monthly budget.
 
 ### Deletion and recovery
+
 - Soft-deleted rows disappear from normal lists/reports and appear in Trash.
 - `purge_after` is 30 days after `deleted_at`, with consistent nullability.
 - Restore is allowed only before the recovery deadline and by a currently authorized actor.
@@ -79,6 +83,7 @@ All fixture IDs and amounts must be deterministic and generated in a disposable 
 - After membership removal, a user loses access immediately, including to previously known IDs.
 
 ### Exports
+
 - Only active records are exported; hidden trackers are excluded from normal reports/exports as specified.
 - One workspace per user-initiated export.
 - Export request captures requester, workspace, date range, requested data types, and job status.
@@ -91,6 +96,7 @@ All fixture IDs and amounts must be deterministic and generated in a disposable 
 ## 6. Acceptance gates
 
 Do not consider the artifact implementation-ready until:
+
 1. All P0 cases have executable tests.
 2. Every P0/P1 test has a named owner and a reproducible fixture.
 3. SQL function/RPC names match the finalized schema/API artifacts.
@@ -99,11 +105,9 @@ Do not consider the artifact implementation-ready until:
 6. Negative tests prove denial (not just that the UI hides controls).
 7. A clean test run and security review are recorded before any production deployment.
 
-
 ## Reconciled decision coverage
 
 Add explicit test groups for household-user category scope isolation and duplicate category labels across scopes; recipient-specific annual Drive export authorization; idempotency replay/fingerprint conflict with at least 24-hour terminal retention; and mixed cursor/page-number pagination. The test plan remains unexecuted and requires a disposable database plus mocked Drive storage.
-
 
 ## Reconciliation scenarios to include (not executed)
 

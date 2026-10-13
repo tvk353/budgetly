@@ -1,9 +1,9 @@
-import type { Metadata } from "next";
-import "./globals.css";
+import type { Metadata } from 'next';
+import './globals.css';
 
 export const metadata: Metadata = {
-  title: "Budgetly",
-  description: "Spend wisely. Save confidently.",
+  title: 'Budgetly',
+  description: 'Spend wisely. Save confidently.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

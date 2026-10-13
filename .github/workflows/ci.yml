@@ -1,0 +1,56 @@
+name: Budgetly CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium and Linux dependencies
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Check formatting
+        run: pnpm run format:check
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Check types
+        run: pnpm run typecheck
+
+      - name: Run unit tests
+        run: pnpm run test
+
+      - name: Build application
+        run: pnpm run build
+
+      - name: Run end-to-end tests
+        run: pnpm run e2e

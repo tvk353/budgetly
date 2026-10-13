@@ -1,5 +1,5 @@
-import { AppShell } from "@/components/app-shell";
-import { VerificationForm } from "@/components/verification-form";
+import { AppShell } from '@/components/app-shell';
+import { VerificationForm } from '@/components/verification-form';
 
 export default async function VerifyPage({
   searchParams,

@@ -3,6 +3,7 @@
 Use this before approving or executing the migration package.
 
 ## Tables and core constraints
+
 - [ ] Profiles use the Supabase Auth user UUID.
 - [ ] Personal workspace cardinality and household owner invariants are correct.
 - [ ] Household membership has no two-member cap.
@@ -26,6 +27,7 @@ Use this before approving or executing the migration package.
 - [ ] Audit rows survive actor deletion where required, while target financial audit rows are purged with the target.
 
 ## Before any database exposure
+
 - [ ] Enable RLS on every public application table.
 - [ ] Create and review policies for every table and mutation path.
 - [ ] Restrict direct writes where a transaction/function is required for cross-row invariants.
@@ -35,7 +37,6 @@ Use this before approving or executing the migration package.
 - [ ] Test concurrent linked-refund requests.
 - [ ] Test restore when the category was deleted.
 - [ ] Test deletion/purge retries and backup reconciliation.
-
 
 ## Reconciliation checks added
 

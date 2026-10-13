@@ -56,7 +56,6 @@ These scenarios are acceptance requirements. Exact routes, RPC names, HTTP statu
 - Attempt to read `background_jobs`, `backup_runs`, `deletion_tombstones`, or audit records without authorized access.
 - Remove a member while they have an active session; subsequent requests must be denied without requiring the client to sign out.
 
-
 ## Reconciled decisions (12 October 2026)
 
 - Category-scope isolation: user A and B who share a household-user category scope can see/manage its custom categories across their Personal and Shared Household workspaces; user C from an unrelated account cannot read or mutate those definitions. Built-ins remain globally visible.
@@ -65,7 +64,6 @@ These scenarios are acceptance requirements. Exact routes, RPC names, HTTP statu
 - Idempotency: verify replay semantics, different-payload conflict, and minimum 24-hour terminal retention.
 - Pagination: transactions/history use cursor pagination; simple lists/reports use page-number pagination, with limit default 20/max 100 and endpoint-specific contract assertions.
 - Background jobs: lifecycle transitions occur on `background_jobs`; detail rows store task parameters/results only.
-
 
 ## Reconciliation scenarios to include (not executed)
 
