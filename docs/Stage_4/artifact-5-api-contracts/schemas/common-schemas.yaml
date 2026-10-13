@@ -1,0 +1,166 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: Budgetly Common API Schemas
+type: object
+$defs:
+  UUID:
+    type: string
+    format: uuid
+  Date:
+    type: string
+    format: date
+    description: Calendar date in Asia/Kolkata for date-only business fields.
+  Timestamp:
+    type: string
+    format: date-time
+    description: RFC 3339 timestamp representing an instant.
+  Amount:
+    type: string
+    pattern: '^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,2})?$'
+    examples: ["0.00", "125.50"]
+    description: Exact decimal string; endpoint validation rejects zero where a positive amount is required.
+  Error:
+    type: object
+    required: [error]
+    properties:
+      error:
+        type: object
+        required: [code, message, request_id]
+        properties:
+          code: { type: string }
+          message: { type: string }
+          request_id: { type: string, minLength: 1 }
+          details:
+            type: array
+            items:
+              type: object
+              required: [field, code, message]
+              properties:
+                field: { type: string }
+                code: { type: string }
+                message: { type: string }
+            maxItems: 50
+        additionalProperties: false
+    additionalProperties: false
+  CursorPage:
+    type: object
+    required: [style, limit, next_cursor, has_more]
+    properties:
+      style: { type: string, const: cursor }
+      limit: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      next_cursor: { type: [string, "null"] }
+      has_more: { type: boolean }
+    additionalProperties: false
+  PageNumberPage:
+    type: object
+    required: [style, limit, page_number, total_count, total_pages]
+    properties:
+      style: { type: string, const: page_number }
+      limit: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      page_number: { type: integer, minimum: 1, default: 1 }
+      total_count: { type: integer, minimum: 0 }
+      total_pages: { type: integer, minimum: 0 }
+    additionalProperties: false
+  Page:
+    oneOf:
+      - { "$ref": "#/$defs/CursorPage" }
+      - { "$ref": "#/$defs/PageNumberPage" }
+    description: Use exactly one pagination style per endpoint; do not mix cursor and page-number parameters.
+  TransactionCreate:
+    type: object
+    required: [type, amount, date, category_id]
+    properties:
+      type: { type: string, enum: [expense, refund] }
+      amount: { "$ref": "#/$defs/Amount" }
+      date: { "$ref": "#/$defs/Date" }
+      category_id: { "$ref": "#/$defs/UUID" }
+      description: { type: string, maxLength: 50 }
+      notes: { type: string, maxLength: 500 }
+      linked_expense_id: { "$ref": "#/$defs/UUID" }
+    additionalProperties: false
+  Transaction:
+    type: object
+    required: [id, workspace_id, type, amount, currency, date, category_id, needs_category_correction, created_at, updated_at, version]
+    properties:
+      id: { "$ref": "#/$defs/UUID" }
+      workspace_id: { "$ref": "#/$defs/UUID" }
+      type: { type: string, enum: [expense, refund] }
+      amount: { "$ref": "#/$defs/Amount" }
+      currency: { type: string, const: INR }
+      date: { "$ref": "#/$defs/Date" }
+      category_id: { type: [string, "null"], format: uuid }
+      needs_category_correction: { type: boolean }
+      description: { type: [string, "null"], maxLength: 50 }
+      notes: { type: [string, "null"], maxLength: 500 }
+      linked_expense_id: { type: [string, "null"], format: uuid }
+      created_at: { "$ref": "#/$defs/Timestamp" }
+      updated_at: { "$ref": "#/$defs/Timestamp" }
+      version: { type: integer, minimum: 1 }
+    additionalProperties: false
+  BudgetUpsert:
+    type: object
+    required: [base_budget, rollover]
+    properties:
+      base_budget: { "$ref": "#/$defs/Amount" }
+      rollover:
+        allOf:
+          - "$ref": "#/$defs/Amount"
+        description: Must be zero or greater.
+    additionalProperties: false
+  BudgetSummary:
+    type: object
+    required: [month, base_budget, rollover, applicable_budget, eligible_expenses, eligible_refunds, net_eligible_expenses, available]
+    properties:
+      month: { type: string, pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$' }
+      base_budget: { "$ref": "#/$defs/Amount" }
+      rollover: { "$ref": "#/$defs/Amount" }
+      applicable_budget: { "$ref": "#/$defs/Amount" }
+      eligible_expenses: { "$ref": "#/$defs/Amount" }
+      eligible_refunds: { "$ref": "#/$defs/Amount" }
+      net_eligible_expenses: { "$ref": "#/$defs/Amount" }
+      available:
+        type: string
+        pattern: '^-?(?:0|[1-9][0-9]*)(?:\.[0-9]{1,2})?$'
+        description: May be negative.
+    additionalProperties: false
+  ExportCreate:
+    type: object
+    required: [data_types, period, format]
+    properties:
+      data_types:
+        type: array
+        minItems: 1
+        uniqueItems: true
+        items: { type: string, enum: [transactions, budgets, savings, trackers, categories, audit_history] }
+      period:
+        type: object
+        required: [start_date, end_date]
+        properties:
+          start_date: { "$ref": "#/$defs/Date" }
+          end_date: { "$ref": "#/$defs/Date" }
+        additionalProperties: false
+      format: { type: string, const: csv }
+    additionalProperties: false
+  ErrorCode:
+    type: string
+    enum:
+      - VALIDATION_ERROR
+      - AUTHENTICATION_REQUIRED
+      - FORBIDDEN
+      - NOT_FOUND
+      - CONFLICT
+      - VERSION_CONFLICT
+      - IDEMPOTENCY_KEY_REUSED
+      - REFUND_EXCEEDS_REMAINING
+      - CATEGORY_INCOMPATIBLE
+      - CATEGORY_CORRECTION_REQUIRED
+      - BUDGET_MONTH_NOT_CURRENT
+      - INVITATION_EXPIRED
+      - RECOVERY_WINDOW_EXPIRED
+      - RATE_LIMITED
+      - SERVICE_UNAVAILABLE
+      - INTERNAL_ERROR
+
+# Reconciliation decisions (12 October 2026)
+# - Custom categories are household-user scoped, not app-wide.
+# - Idempotency terminal results are retained for at least 24 hours.
+# - Transactions/history use CursorPage; simple lists/reports use PageNumberPage.

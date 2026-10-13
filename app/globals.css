@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+:root {
+  --color-primary: #176b57;
+  --color-background: #faf9f6;
+  --color-soft-green: #8cbf9f;
+  --color-main-text: #202a27;
+  --color-secondary-text: #69746f;
+  --color-card-surface: #ffffff;
+  --color-border: #e4e9e5;
+  --color-light-teal: #e7f1ec;
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--color-background);
+  color: var(--color-main-text);
+  font-family: var(--font-sans, Arial, Helvetica, sans-serif);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+::selection {
+  background: var(--color-light-teal);
+}

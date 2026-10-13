@@ -1,0 +1,14 @@
+{
+  "error": {
+    "code": "REFUND_EXCEEDS_REMAINING",
+    "message": "The refund exceeds the remaining refundable amount.",
+    "details": [
+      {
+        "field": "amount",
+        "code": "EXCEEDS_REMAINING",
+        "message": "Reduce the amount or review existing refunds."
+      }
+    ],
+    "request_id": "req_01J9EXAMPLE"
+  }
+}

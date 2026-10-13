@@ -1,0 +1,15 @@
+/node_modules/
+/.next/
+/out/
+/build/
+/coverage/
+/test-results/
+/playwright-report/
+/playwright/.cache/
+
+*.tsbuildinfo
+pnpm-debug.log*
+*.log
+.env
+.env.*
+!.env.example

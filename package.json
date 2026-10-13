@@ -1,0 +1,57 @@
+{
+  "name": "budgetly",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Budgetly private household expense tracker",
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1 --port 3000",
+    "build": "next build",
+    "start": "next start --hostname 127.0.0.1 --port 3000",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e": "playwright test"
+  },
+  "keywords": [
+    "budgetly",
+    "finance",
+    "nextjs"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "^11.1.2",
+      "onFail": "download"
+    }
+  },
+  "type": "module",
+  "dependencies": {
+    "next": "16.4.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.7",
+    "@eslint/js": "^10.0.1",
+    "@next/eslint-plugin-next": "^16.4.0",
+    "@playwright/test": "1.64.0",
+    "@tailwindcss/postcss": "4.3.3",
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "16.3.3",
+    "@types/node": "24.0.10",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "5.0.0",
+    "eslint": "10.12.0",
+    "eslint-config-next": "16.4.0",
+    "globals": "^17.13.0",
+    "jsdom": "27.0.0",
+    "tailwindcss": "4.3.3",
+    "typescript": "5.9.2",
+    "typescript-eslint": "^8.71.1",
+    "vitest": "5.0.4"
+  }
+}

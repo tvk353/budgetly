@@ -1,0 +1,71 @@
+case_id,area,priority,layer,scenario,expected_result,status
+AUTH-001,Authorization,P0,pgTAP,User reads own active workspace,Rows for workspace are visible,Planned
+AUTH-002,Authorization,P0,pgTAP,Unrelated user reads workspace transactions,Zero rows and writes denied,Planned
+AUTH-003,Authorization,P0,pgTAP,Removed member queries former household,Access denied immediately,Planned
+AUTH-004,Authorization,P0,pgTAP,Authenticated user updates own membership role,Direct write denied,Planned
+AUTH-005,Authorization,P0,pgTAP,Authenticated user writes audit log,Direct write denied,Planned
+AUTH-006,Authorization,P0,pgTAP,Authenticated user reads background jobs backup runs tombstones,Access denied,Planned
+AUTH-007,Authorization,P0,pgTAP,Tracker transaction points to another workspace tracker,Composite FK rejects write,Planned
+AUTH-008,Authorization,P1,pgTAP,Owner transfers ownership,Exactly one active owner remains,Blocked on RPC contract
+AUTH-009,Authorization,P1,API integration,User updates another user's profile,Denied,Planned
+REF-001,Refunds,P0,constraint/RPC,Linked refund equals expense amount,Accepted once if remaining refundable amount permits,Planned
+REF-002,Refunds,P0,constraint/RPC,Linked refund exceeds remaining refundable amount,Rejected atomically,Blocked on RPC contract
+REF-003,Refunds,P0,multi-session,Two concurrent partial refunds exceed expense total,At most one transaction succeeds or amounts are serialized; total never exceeds expense,Blocked on RPC contract
+REF-004,Refunds,P0,constraint,Rrefund links to expense in another workspace,Cross-workspace link rejected,Planned
+REF-005,Refunds,P1,RPC/integration,Unlinked refund recorded,Allowed and included in eligible refund totals per rules,Planned
+REF-006,Refunds,P1,RPC/integration,Delete linked refund,Refundable capacity restored; expense unchanged,Blocked on delete RPC
+REF-007,Refunds,P1,RPC/integration,Delete expense,Expense and linked refunds moved to Trash together,Blocked on delete RPC
+REF-008,Refunds,P1,constraint,Restore transaction whose category was purged,category_id NULL and correction flag true,Planned
+BUD-001,Budgets,P0,constraint,Create second budget for same workspace/month,Unique constraint rejects duplicate,Planned
+BUD-002,Budgets,P0,API/RPC,Create budget for future month,Rejected,Blocked on API contract
+BUD-003,Budgets,P0,constraint,Negative base budget or rollover,Rejected,Planned
+BUD-004,Budgets,P1,unit/integration,Compute applicable budget,Base plus nonnegative rollover,Planned
+BUD-005,Budgets,P1,unit/integration,Refund reduces net eligible expenses,Available budget increases by eligible refund,Planned
+BUD-006,Budgets,P1,unit/integration,Expenses exceed applicable budget,Available budget may be negative,Planned
+BUD-007,Budgets,P1,API integration,Edit past budget,Allowed and totals recalculate,Planned
+BUD-008,Budgets,P1,API integration,Create past budget,Rejected,Blocked on API contract
+DEL-001,Deletion/recovery,P0,RPC/integration,Soft delete eligible record,deleted_at and purge_after set; row excluded from normal screens,Blocked on delete RPC
+DEL-002,Deletion/recovery,P0,RPC/integration,Restore before deadline,Record restored and available to authorized workspace members,Blocked on restore RPC
+DEL-003,Deletion/recovery,P0,RPC/integration,Restore after deadline,Rejected,Blocked on recovery contract
+DEL-004,Deletion/recovery,P0,multi-run worker,Purge same target twice,Second run is safe and does not corrupt state,Blocked on purge worker contract
+DEL-005,Deletion/recovery,P0,backup integration,Restore backup containing purged data,Durable tombstone prevents resurrection,Blocked on backup contract
+DEL-006,Deletion/recovery,P1,RPC/integration,Delete expense with linked refunds,Both move to Trash atomically,Blocked on delete RPC
+DEL-007,Deletion/recovery,P1,RPC/integration,Restore workspace after account owner recovers,Ownership/access restored only under approved rules,Blocked on recovery contract
+DEL-008,Deletion/recovery,P1,API integration,Restore workspace,Previously revoked invitations remain revoked,Blocked on recovery contract
+EXP-001,Exports,P0,API/RLS,Request export for unrelated workspace,Denied,Blocked on export RPC
+EXP-002,Exports,P0,API/worker,Download household export after membership removal,Denied at download time,Blocked on download contract
+EXP-003,Exports,P0,worker integration,Export rows from another workspace,No cross-workspace data appears,Blocked on worker contract
+EXP-004,Exports,P0,worker integration,Export active rows only,Trash rows excluded; hidden trackers excluded from normal reports/exports,Blocked on export contract
+EXP-005,Exports,P1,worker integration,Retry failed export,Retry is idempotent and status remains consistent,Blocked on job contract
+EXP-006,Exports,P1,worker integration,Annual export date range,Previous calendar year in Asia/Kolkata,Blocked on scheduler contract
+EXP-007,Exports,P1,API integration,Export download URL appears in list API/log,Sensitive URL/token omitted,Blocked on API contract
+EXP-008,Exports,P1,worker integration,One export partially fails,Failure recorded and retry/notification policy followed,Blocked on worker contract
+SAV-001,Savings,P1,unit/integration,Deposits minus withdrawals,Correct balance even if negative,Planned
+TRK-001,Trackers,P1,constraint/integration,Add transaction to ended tracker,Rejected unless tracker reopened,Blocked on trigger contract
+TRK-002,Trackers,P1,integration,Hidden tracker in normal reports,Excluded,Planned
+TRK-003,Trackers,P0,constraint,Tracker transaction workspace mismatches tracker workspace,Composite FK rejects,Planned
+CAT-001,Categories,P1,constraint/integration,Duplicate custom category with different case,Rejected globally after trim,Planned
+CAT-002,Categories,P1,constraint/integration,Archive category then create transaction,Rejected for new use but retained in historical records,Blocked on trigger/API contract
+CAT-003,Categories,P1,integration,Restore transaction with missing category,Correction flag is visible and can be cleared by valid reassignment,Planned
+JOB-001,Background jobs,P0,RLS,Authenticated client reads or modifies job queue,Denied,Planned
+JOB-002,Background jobs,P1,worker integration,Job type/detail mismatch,Rejected by database integrity rule,Blocked on final schema contract
+
+CAT-SCOPE-01,Category scope,Authorized scope member can read shared custom categories,High,API/RLS,Not run
+CAT-SCOPE-02,Category scope,Unrelated user cannot read or mutate custom categories,High,RLS/API,Not run
+CAT-SCOPE-03,Category scope,Scope merge handles normalized name collisions atomically,High,Integration,Not run
+EXP-DRIVE-01,Annual export,Each recipient gets own authorized Drive export and links,High,Integration,Not run
+IDEM-01,Idempotency,Same key replays and different fingerprint conflicts; retain terminal result >=24h,High,API/DB,Not run
+PAGE-01,Pagination,Mixed cursor/page-number contracts enforce limit 20 default and 100 max,Medium,API,Not run
+JOB-STATUS-01,Background jobs,Only background_jobs owns lifecycle status,High,DB/API,Not run
+CAT-SCOPE-001,Categories,P0,API integration,Household member sees categories from each active member scope,Categories are visible only to authorized household-user scopes,Planned
+CAT-SCOPE-002,Categories,P0,API integration,Member leaves household and queries former member scope,Access is denied and own personal scope remains available,Planned
+CAT-SCOPE-003,Categories,P1,UI/API integration,Same-named categories exist in two user scopes,Labels are disambiguated by category owner and records remain distinct,Planned
+JOB-STATUS-001,Background jobs,P0,pgTAP/API integration,Task detail status is requested,Status is derived from background_jobs only,Planned
+REFUND-CONC-001,Refunds,P0,Multi-session integration,Two concurrent refunds attempt to consume the same remaining amount,Total active linked refunds never exceeds the expense amount,Planned
+IDEMP-001,Idempotency,P0,API integration,Same key and same request are retried,Original response is replayed during retention,Planned
+IDEMP-002,Idempotency,P0,API integration,Same key is reused with a different request fingerprint,Request fails with 409 IDEMPOTENCY_KEY_REUSED,Planned
+EXPORT-RECIPIENT-001,Exports,P0,API integration,Household annual export is generated for each member,Each member receives only their authorized export in their private Drive,Planned
+EXPORT-AUTH-002,Exports,P0,API integration,Workspace access is revoked before export download,Download is denied after current authorization re-check,Planned
+PURGE-TOMBSTONE-001,Deletion/Purge,P0,Integration,Backup restore encounters a completed deletion tombstone,Deleted account/workspace is not resurrected,Planned
+PAGINATION-001,Pagination,P1,API integration,Cursor and page-number parameters are sent to one endpoint,Request is rejected as mixed pagination styles,Planned
+PAGINATION-002,Pagination,P1,API integration,Cursor is reused with changed filters or sort,Cursor is rejected as invalid for the request context,Planned

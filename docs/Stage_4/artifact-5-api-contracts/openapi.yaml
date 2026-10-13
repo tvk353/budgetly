@@ -1,0 +1,583 @@
+openapi: 3.1.0
+info:
+  title: Budgetly API
+  version: 1.0.0-draft
+  description: >
+    Draft API contract for Budgetly. All amounts are decimal strings; workspace access
+    is checked server-side and enforced again by Supabase RLS. Category access uses
+    per-user scopes linked to workspaces through workspace_category_scopes. Background
+    job lifecycle status is sourced from background_jobs. Transaction/history endpoints
+    use cursor pagination; bounded lists/reports use page-number pagination (default 20,
+    maximum 100). Idempotency terminal results are retained for at least 24 hours.
+    Annual Drive exports are private and recipient-specific. This OpenAPI file covers the primary
+    routes and is a machine-readable subset of the complete route catalogue in API_CONTRACTS.md.
+    YAML syntax parses successfully; full OpenAPI semantic validation and route expansion remain
+    implementation-readiness gates.
+servers:
+  - url: /api/v1
+security:
+  - sessionCookie: []
+tags:
+  - name: Auth
+  - name: Workspaces
+  - name: Categories
+  - name: Transactions
+  - name: Budgets
+  - name: Savings
+  - name: Trackers
+  - name: Trash
+  - name: Exports
+paths:
+  /auth/otp/request:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Request an email OTP
+      description: Generic response to avoid account enumeration; enforce expiry, attempt and resend limits.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email, maxLength: 254 }
+              additionalProperties: false
+      responses:
+        '202':
+          description: Request accepted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Accepted' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /auth/otp/verify:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Verify an email OTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, otp]
+              properties:
+                email: { type: string, format: email, maxLength: 254 }
+                otp: { type: string, pattern: '^[0-9]{6}$' }
+              additionalProperties: false
+      responses:
+        '200':
+          description: Authenticated; session established by configured auth mechanism
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user, session]
+                properties:
+                  user: { $ref: '#/components/schemas/UserSummary' }
+                  session: { type: object, description: Provider-defined session metadata; never return secrets unnecessarily. }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '410': { $ref: '#/components/responses/Gone' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /me:
+    get:
+      tags: [Auth]
+      summary: Get current user profile
+      responses:
+        '200':
+          description: Current profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserSummary' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    patch:
+      tags: [Auth]
+      summary: Update allowed profile fields
+      description: Only display_name is writable through this endpoint.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [display_name]
+              properties:
+                display_name: { type: string, minLength: 1, maxLength: 80 }
+              additionalProperties: false
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserSummary' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /workspaces:
+    get:
+      tags: [Workspaces]
+      summary: List accessible workspaces
+      responses:
+        '200':
+          description: Workspaces
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Workspace' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Workspaces]
+      summary: Create workspace through trusted server operation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind, name]
+              properties:
+                kind: { type: string, enum: [personal, household] }
+                name: { type: string, minLength: 1, maxLength: 80 }
+              additionalProperties: false
+      responses:
+        '201':
+          description: Created workspace
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Workspace' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /workspaces/{workspaceId}/transactions:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+    get:
+      tags: [Transactions]
+      summary: List active transactions
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - in: query
+          name: cursor
+          schema: { type: string }
+        - in: query
+          name: start_date
+          schema: { type: string, format: date }
+        - in: query
+          name: end_date
+          schema: { type: string, format: date }
+        - in: query
+          name: type
+          schema: { type: string, enum: [expense, refund] }
+      responses:
+        '200':
+          description: Transaction page
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Transaction' }
+                  page: { $ref: '#/components/schemas/Page' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+    post:
+      tags: [Transactions]
+      summary: Create an expense or refund
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TransactionCreate' }
+      responses:
+        '201':
+          description: Created transaction
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Transaction' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /workspaces/{workspaceId}/transactions/{transactionId}:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - name: transactionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Transactions]
+      summary: Get a transaction
+      responses:
+        '200':
+          description: Transaction
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Transaction' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Transactions]
+      summary: Update a transaction
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                amount: { $ref: '#/components/schemas/Amount' }
+                date: { type: string, format: date }
+                category_id: { type: string, format: uuid }
+                description: { type: [string, 'null'], maxLength: 50 }
+                notes: { type: [string, 'null'], maxLength: 500 }
+              additionalProperties: false
+      responses:
+        '200':
+          description: Updated transaction
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Transaction' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Transactions]
+      summary: Move transaction to Trash
+      responses:
+        '204': { description: Moved to Trash }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /workspaces/{workspaceId}/budgets/{month}:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - name: month
+        in: path
+        required: true
+        schema: { type: string, pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$' }
+    get:
+      tags: [Budgets]
+      summary: Get budget and calculated summary
+      responses:
+        '200':
+          description: Budget summary
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BudgetSummary' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+    put:
+      tags: [Budgets]
+      summary: Create or update budget
+      description: Creation is allowed only for the current IST month; past budgets may be edited.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BudgetUpsert' }
+      responses:
+        '200':
+          description: Budget saved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BudgetSummary' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /workspaces/{workspaceId}/exports:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+    post:
+      tags: [Exports]
+      summary: Request CSV export
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ExportCreate' }
+      responses:
+        '202':
+          description: Export job accepted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ExportAccepted' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /workspaces/{workspaceId}/exports/{exportId}/download:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - name: exportId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Exports]
+      summary: Authorize and issue short-lived download URL
+      description: Re-check current user, workspace membership, job visibility and export status before issuing URL.
+      responses:
+        '200':
+          description: Short-lived URL issued
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [download_url, expires_at]
+                properties:
+                  download_url: { type: string, format: uri }
+                  expires_at: { type: string, format: date-time }
+                additionalProperties: false
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '410': { $ref: '#/components/responses/Gone' }
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: __Host-budgetly-session
+  parameters:
+    WorkspaceId:
+      name: workspaceId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema: { type: string, minLength: 8, maxLength: 128, pattern: '^[!-~]+$' }
+    IfMatch:
+      name: If-Match
+      in: header
+      required: false
+      schema: { type: string, minLength: 1, maxLength: 128 }
+  schemas:
+    Amount:
+      type: string
+      pattern: '^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,2})?$'
+      description: Decimal string; endpoint validation rejects zero for positive amounts.
+    TransactionCreate:
+      type: object
+      required: [type, amount, date, category_id]
+      properties:
+        type: { type: string, enum: [expense, refund] }
+        amount: { $ref: '#/components/schemas/Amount' }
+        date: { type: string, format: date }
+        category_id: { type: string, format: uuid }
+        description: { type: string, maxLength: 50 }
+        notes: { type: string, maxLength: 500 }
+        linked_expense_id: { type: string, format: uuid }
+      additionalProperties: false
+    Transaction:
+      type: object
+      required: [id, workspace_id, type, amount, currency, date, category_id, needs_category_correction, created_at, updated_at, version]
+      properties:
+        id: { type: string, format: uuid }
+        workspace_id: { type: string, format: uuid }
+        type: { type: string, enum: [expense, refund] }
+        amount: { $ref: '#/components/schemas/Amount' }
+        currency: { type: string, const: INR }
+        date: { type: string, format: date }
+        category_id: { type: [string, 'null'], format: uuid }
+        needs_category_correction: { type: boolean }
+        description: { type: [string, 'null'], maxLength: 50 }
+        notes: { type: [string, 'null'], maxLength: 500 }
+        linked_expense_id: { type: [string, 'null'], format: uuid }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        version: { type: integer, minimum: 1 }
+      additionalProperties: false
+    CursorPage:
+      type: object
+      required: [style, limit, next_cursor, has_more]
+      properties:
+        style: { type: string, const: cursor }
+        limit: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        next_cursor: { type: [string, 'null'] }
+        has_more: { type: boolean }
+      additionalProperties: false
+    PageNumberPage:
+      type: object
+      required: [style, limit, page_number, total_count, total_pages]
+      properties:
+        style: { type: string, const: page_number }
+        limit: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        page_number: { type: integer, minimum: 1, default: 1 }
+        total_count: { type: integer, minimum: 0 }
+        total_pages: { type: integer, minimum: 0 }
+      additionalProperties: false
+    Page:
+      oneOf:
+        - { $ref: '#/components/schemas/CursorPage' }
+        - { $ref: '#/components/schemas/PageNumberPage' }
+      description: Use exactly one pagination style per endpoint; default limit 20, maximum 100.
+    BudgetUpsert:
+      type: object
+      required: [base_budget, rollover]
+      properties:
+        base_budget: { $ref: '#/components/schemas/Amount' }
+        rollover:
+          allOf:
+            - $ref: '#/components/schemas/Amount'
+          description: Must be zero or greater.
+      additionalProperties: false
+    BudgetSummary:
+      type: object
+      required: [month, base_budget, rollover, applicable_budget, eligible_expenses, eligible_refunds, net_eligible_expenses, available]
+      properties:
+        month: { type: string, pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$' }
+        base_budget: { $ref: '#/components/schemas/Amount' }
+        rollover: { $ref: '#/components/schemas/Amount' }
+        applicable_budget: { $ref: '#/components/schemas/Amount' }
+        eligible_expenses: { $ref: '#/components/schemas/Amount' }
+        eligible_refunds: { $ref: '#/components/schemas/Amount' }
+        net_eligible_expenses: { $ref: '#/components/schemas/Amount' }
+        available:
+          type: string
+          pattern: '^-?(?:0|[1-9][0-9]*)(?:\.[0-9]{1,2})?$'
+      additionalProperties: false
+    ExportCreate:
+      type: object
+      required: [data_types, period, format]
+      properties:
+        data_types:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { type: string, enum: [transactions, budgets, savings, trackers, categories, audit_history] }
+        period:
+          type: object
+          required: [start_date, end_date]
+          properties:
+            start_date: { type: string, format: date }
+            end_date: { type: string, format: date }
+          additionalProperties: false
+        format: { type: string, const: csv }
+      additionalProperties: false
+    ExportAccepted:
+      type: object
+      required: [id, status, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [pending, running, completed, failed] }
+        created_at: { type: string, format: date-time }
+      additionalProperties: false
+    Workspace:
+      type: object
+      required: [id, kind, name, role]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [personal, household] }
+        name: { type: string }
+        role: { type: string, enum: [owner, member] }
+      additionalProperties: false
+    UserSummary:
+      type: object
+      required: [id, display_name]
+      properties:
+        id: { type: string, format: uuid }
+        display_name: { type: [string, 'null'], maxLength: 80 }
+      additionalProperties: false
+    Accepted:
+      type: object
+      required: [accepted]
+      properties:
+        accepted: { type: boolean, const: true }
+      additionalProperties: false
+    ApiError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, request_id]
+          properties:
+            code: { type: string, description: Stable machine-readable error code. }
+            message: { type: string, description: Safe user-facing message; no SQL or secrets. }
+            request_id: { type: string }
+            details:
+              type: array
+              items:
+                type: object
+                required: [field, code, message]
+                properties:
+                  field: { type: string }
+                  code: { type: string }
+                  message: { type: string }
+          additionalProperties: false
+      additionalProperties: false
+  responses:
+    BadRequest:
+      description: Malformed or invalid request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Unauthorized:
+      description: Authentication required or invalid
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    NotFound:
+      description: Resource missing or intentionally concealed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Conflict:
+      description: Business rule or concurrency conflict
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    ValidationError:
+      description: Request violates domain validation
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    RateLimited:
+      description: Rate limit exceeded; Retry-After may be present
+      headers:
+        Retry-After:
+          schema: { type: integer, minimum: 1 }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Gone:
+      description: Expired invitation, recovery window or export link
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Unavailable:
+      description: Temporary dependency failure
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
