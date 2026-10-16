@@ -1,14 +1,15 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 import { demoOtp } from '@/lib/mock-data';
 
 export function VerificationForm({ email }: { email?: string }) {
+  const router = useRouter();
   const address = email ?? 'hello@budgetly.app';
   const [code, setCode] = useState(demoOtp);
   const [error, setError] = useState('');
-  const [verified, setVerified] = useState(false);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -24,28 +25,8 @@ export function VerificationForm({ email }: { email?: string }) {
     }
 
     setError('');
-    setVerified(true);
+    router.push('/workspaces');
   };
-
-  if (verified) {
-    return (
-      <section className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-card-surface)] p-6 shadow-[0_10px_35px_rgba(23,107,87,0.08)] sm:p-7">
-        <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-[var(--color-secondary-text)]">
-          Verified
-        </p>
-        <h2 className="mt-3 text-3xl font-semibold leading-tight text-[var(--color-main-text)]">
-          Email verified
-        </h2>
-        <p className="mt-3 text-sm leading-6 text-[var(--color-secondary-text)]">
-          You are signed in as{' '}
-          <span className="font-medium text-[var(--color-main-text)]">{address}</span>.
-        </p>
-        <div className="mt-6 rounded-2xl border border-[var(--color-light-teal)] bg-[var(--color-light-teal)] px-4 py-3 text-sm text-[var(--color-main-text)]">
-          Demo code used: <span className="font-semibold">{demoOtp}</span>
-        </div>
-      </section>
-    );
-  }
 
   return (
     <section className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-card-surface)] p-6 shadow-[0_10px_35px_rgba(23,107,87,0.08)] sm:p-7">
