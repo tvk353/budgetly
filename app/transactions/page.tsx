@@ -1,0 +1,25 @@
+import { connection } from 'next/server';
+
+import { TransactionsScreen } from '@/components/transactions-screen';
+import { getHouseholdDashboardData } from '@/lib/household-dashboard-data';
+import { getTransactionScreenData } from '@/lib/transactions-data';
+
+export default async function TransactionsPage() {
+  await connection();
+  const now = new Date();
+  const screen = getTransactionScreenData(now);
+  const dashboard = getHouseholdDashboardData(now);
+
+  return (
+    <TransactionsScreen
+      transactions={screen.records}
+      todayKey={screen.todayKey}
+      monthLabel={screen.monthLabel}
+      monthPrefix={screen.monthPrefix}
+      monthExpensePaise={screen.monthExpensePaise}
+      monthRefundPaise={screen.monthRefundPaise}
+      netSpentPaise={dashboard.budget.netEligibleExpensesPaise}
+      transactionCount={screen.transactionCount}
+    />
+  );
+}

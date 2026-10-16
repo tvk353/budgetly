@@ -11,7 +11,16 @@ permissions:
 
 jobs:
   review:
-    uses: antongulin/robin/.github/workflows/review.yml@v2
+    if: >-
+      ${{
+        github.event.issue.pull_request &&
+        contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association) &&
+        (
+          startsWith(github.event.comment.body, '/review') ||
+          startsWith(github.event.comment.body, '/robin')
+        )
+      }}
+    uses: antongulin/robin/.github/workflows/review.yml@58947b398ff5aa0912c018f18bcebd89c2902093
     with:
       request-changes: false
       min-command-permission: write
