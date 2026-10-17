@@ -13,10 +13,9 @@ describe('SavingsScreen', () => {
     render(<SavingsScreen />);
 
     expect(screen.getByRole('heading', { level: 1, name: 'Savings Funds' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /switch workspace, currently household/i })).toHaveAttribute(
-      'href',
-      '/workspaces',
-    );
+    expect(
+      screen.getByRole('link', { name: /switch workspace, currently household/i }),
+    ).toHaveAttribute('href', '/workspaces');
     expect(screen.getByRole('link', { name: 'Go back to Household dashboard' })).toHaveAttribute(
       'href',
       '/workspace/household',
@@ -24,9 +23,7 @@ describe('SavingsScreen', () => {
 
     // Isolation notice
     expect(
-      screen.getByText(
-        /Savings are completely isolated from your monthly spending budget/,
-      ),
+      screen.getByText(/Savings are completely isolated from your monthly spending budget/),
     ).toBeInTheDocument();
 
     // Active bottom nav

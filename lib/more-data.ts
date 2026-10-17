@@ -34,4 +34,3 @@ export const mockMoreHubData: MoreHubData = {
   appVersion: 'Budgetly iOS v2.4.1 (Build 890)',
   appTagline: 'Tactile Minimalist Finance · End-to-End Private',
 };
-

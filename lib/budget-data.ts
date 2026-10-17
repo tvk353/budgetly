@@ -222,4 +222,3 @@ export const mockBudgetData: Record<string, MonthBudgetData> = {
     envelopes: [],
   },
 };
-

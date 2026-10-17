@@ -86,9 +86,7 @@ test('Budget screen renders formula, available surplus, category envelopes, and 
   await expect(page.getByRole('heading', { level: 3, name: 'Groceries' })).toBeVisible();
   await expect(page.getByRole('button', { name: /Edit Budget Allocation/i })).toBeVisible();
   await expect(
-    page.getByText(
-      /Past months can be edited; only current month budget can be newly created/,
-    ),
+    page.getByText(/Past months can be edited; only current month budget can be newly created/),
   ).toBeVisible();
 });
 

@@ -12,9 +12,10 @@ describe('BudgetScreen', () => {
     expect(
       screen.getByRole('link', { name: /switch workspace, currently household with 2 members/i }),
     ).toHaveAttribute('href', '/workspaces');
-    expect(
-      screen.getByRole('link', { name: 'Go back to Household dashboard' }),
-    ).toHaveAttribute('href', '/workspace/household');
+    expect(screen.getByRole('link', { name: 'Go back to Household dashboard' })).toHaveAttribute(
+      'href',
+      '/workspace/household',
+    );
 
     const budgetNav = screen.getByRole('link', { name: 'Budget' });
     expect(budgetNav).toBeInTheDocument();
@@ -56,10 +57,10 @@ describe('BudgetScreen', () => {
   it('renders all 6 category envelopes with correct allocation caps and refund notices', () => {
     render(<BudgetScreen initialMonthKey="2025-03" />);
 
-    expect(screen.getByRole('heading', { level: 2, name: 'Category Envelopes' })).toBeInTheDocument();
     expect(
-      screen.getByText('6 tracked categories for household stewardship'),
+      screen.getByRole('heading', { level: 2, name: 'Category Envelopes' }),
     ).toBeInTheDocument();
+    expect(screen.getByText('6 tracked categories for household stewardship')).toBeInTheDocument();
 
     expect(screen.getByRole('heading', { level: 3, name: 'Groceries' })).toBeInTheDocument();
     expect(screen.getByText('Pantry & Provisions')).toBeInTheDocument();
@@ -68,9 +69,13 @@ describe('BudgetScreen', () => {
     expect(screen.getByRole('heading', { level: 3, name: 'Dining Out' })).toBeInTheDocument();
     expect(screen.getByText('84% used')).toBeInTheDocument();
 
-    expect(screen.getByRole('heading', { level: 3, name: 'Utilities & Bills' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'Utilities & Bills' }),
+    ).toBeInTheDocument();
 
-    expect(screen.getByRole('heading', { level: 3, name: 'Shopping & Retail' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'Shopping & Retail' }),
+    ).toBeInTheDocument();
     expect(screen.getByText('Adj. by ₹1,450 refund')).toBeInTheDocument();
 
     expect(screen.getByRole('heading', { level: 3, name: 'Transport' })).toBeInTheDocument();
@@ -100,7 +105,9 @@ describe('BudgetScreen', () => {
     fireEvent.click(aprButton);
     expect(screen.getByText(/No budget created for April 2025 yet/)).toBeInTheDocument();
     expect(
-      screen.getByText(/Per approved policy, a new monthly budget can only be created during its active calendar month/),
+      screen.getByText(
+        /Per approved policy, a new monthly budget can only be created during its active calendar month/,
+      ),
     ).toBeInTheDocument();
   });
 
@@ -127,7 +134,9 @@ describe('BudgetScreen', () => {
     expect(screen.getByText(/Monthly Budget Rules \(PRD Section 3\):/)).toBeInTheDocument();
 
     fireEvent.click(helpButton);
-    expect(screen.queryByRole('region', { name: 'Budget calculation guide' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('region', { name: 'Budget calculation guide' }),
+    ).not.toBeInTheDocument();
   });
 });
 

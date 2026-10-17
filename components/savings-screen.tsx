@@ -69,7 +69,9 @@ export function SavingsScreen({ initialData = mockSavingsData }: SavingsScreenPr
             aria-label="Savings policy guide"
             className="border-t border-[var(--color-border)] bg-white px-5 py-3 text-xs leading-relaxed text-[var(--color-secondary-text)]"
           >
-            <p className="font-semibold text-[var(--color-main-text)]">Savings Rules (PRD Section 4):</p>
+            <p className="font-semibold text-[var(--color-main-text)]">
+              Savings Rules (PRD Section 4):
+            </p>
             <ul className="mt-1 list-disc space-y-1 pl-4">
               <li>Savings funds are independent of monthly budgets and trackers.</li>
               <li>Transactions are deposits or withdrawals (amounts must be positive).</li>
@@ -90,7 +92,8 @@ export function SavingsScreen({ initialData = mockSavingsData }: SavingsScreenPr
             💡
           </div>
           <p className="text-[13px] leading-relaxed text-[var(--color-main-text)]">
-            Savings are completely isolated from your monthly spending budget. Deposits &amp; withdrawals do not affect monthly available balance.
+            Savings are completely isolated from your monthly spending budget. Deposits &amp;
+            withdrawals do not affect monthly available balance.
           </p>
         </section>
 
@@ -160,7 +163,10 @@ export function SavingsScreen({ initialData = mockSavingsData }: SavingsScreenPr
               aria-labelledby="savings-action-dialog-title"
               className="mt-2 rounded-xl border border-[var(--color-primary)] bg-[var(--color-light-teal)]/50 p-3"
             >
-              <h4 id="savings-action-dialog-title" className="text-xs font-bold text-[var(--color-primary)]">
+              <h4
+                id="savings-action-dialog-title"
+                className="text-xs font-bold text-[var(--color-primary)]"
+              >
                 {activeModal === 'new-fund'
                   ? 'Create New Savings Fund'
                   : activeModal === 'deposit'
@@ -168,7 +174,8 @@ export function SavingsScreen({ initialData = mockSavingsData }: SavingsScreenPr
                     : 'Record Fund Withdrawal'}
               </h4>
               <p className="mt-0.5 text-[11px] text-[var(--color-secondary-text)]">
-                Mock mode: Fund transactions are pre-populated. Persistent entry will be available in the storage stage.
+                Mock mode: Fund transactions are pre-populated. Persistent entry will be available
+                in the storage stage.
               </p>
               <div className="mt-2 flex justify-end">
                 <button
@@ -272,10 +279,7 @@ export function SavingsScreen({ initialData = mockSavingsData }: SavingsScreenPr
               const isDeposit = act.type === 'deposit';
 
               return (
-                <div
-                  key={act.id}
-                  className="flex items-center justify-between p-2.5"
-                >
+                <div key={act.id} className="flex items-center justify-between p-2.5">
                   <div className="flex items-center gap-3">
                     <div
                       className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
@@ -319,4 +323,3 @@ export function SavingsScreen({ initialData = mockSavingsData }: SavingsScreenPr
     </div>
   );
 }
-

@@ -59,7 +59,10 @@ export function BudgetScreen({ initialMonthKey = '2025-03' }: BudgetScreenProps)
                 <DashboardIcon name="home" className="h-3 w-3" />
                 Household (2 members)
               </span>
-              <DashboardIcon name="chevron-down" className="h-3 w-3 text-[var(--color-secondary-text)]" />
+              <DashboardIcon
+                name="chevron-down"
+                className="h-3 w-3 text-[var(--color-secondary-text)]"
+              />
             </Link>
             <h1 className="text-[17px] font-bold tracking-tight text-[var(--color-primary)]">
               Monthly Budget
@@ -84,12 +87,16 @@ export function BudgetScreen({ initialMonthKey = '2025-03' }: BudgetScreenProps)
             aria-label="Budget calculation guide"
             className="border-t border-[var(--color-border)] bg-white px-5 py-3 text-xs leading-relaxed text-[var(--color-secondary-text)]"
           >
-            <p className="font-semibold text-[var(--color-main-text)]">Monthly Budget Rules (PRD Section 3):</p>
+            <p className="font-semibold text-[var(--color-main-text)]">
+              Monthly Budget Rules (PRD Section 3):
+            </p>
             <ul className="mt-1 list-disc space-y-1 pl-4">
               <li>Applicable Budget = Base Budget + Rollover</li>
               <li>Net Eligible Expenses = Expenses − Refunds</li>
               <li>Available Budget = Applicable Budget − Net Eligible Expenses</li>
-              <li>Rollover must be zero or positive. Past budgets can be edited for corrections.</li>
+              <li>
+                Rollover must be zero or positive. Past budgets can be edited for corrections.
+              </li>
             </ul>
           </div>
         )}
@@ -133,7 +140,11 @@ export function BudgetScreen({ initialMonthKey = '2025-03' }: BudgetScreenProps)
                       : 'bg-amber-100 text-amber-800'
                 }`}
               >
-                {monthData.isCurrentMonth ? 'Current' : currentIndex < availableMonthKeys.indexOf('2025-03') ? 'Past' : 'Upcoming'}
+                {monthData.isCurrentMonth
+                  ? 'Current'
+                  : currentIndex < availableMonthKeys.indexOf('2025-03')
+                    ? 'Past'
+                    : 'Upcoming'}
               </span>
             </div>
 
@@ -167,7 +178,8 @@ export function BudgetScreen({ initialMonthKey = '2025-03' }: BudgetScreenProps)
                 No budget created for {monthData.monthLabel} yet
               </h2>
               <p className="mt-1 text-[13px] text-[var(--color-secondary-text)]">
-                Per approved policy, a new monthly budget can only be created during its active calendar month.
+                Per approved policy, a new monthly budget can only be created during its active
+                calendar month.
               </p>
             </div>
             <button
@@ -192,7 +204,8 @@ export function BudgetScreen({ initialMonthKey = '2025-03' }: BudgetScreenProps)
                   className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-primary)]"
                 />
                 <p className="text-[13px] leading-tight text-[var(--color-main-text)]">
-                  <strong className="font-semibold text-[var(--color-primary)]">Formula:</strong> Available Budget = Budget + Rollover − Net Eligible Expenses{' '}
+                  <strong className="font-semibold text-[var(--color-primary)]">Formula:</strong>{' '}
+                  Available Budget = Budget + Rollover − Net Eligible Expenses{' '}
                   <span className="block mt-0.5 text-[11px] font-medium text-[var(--color-secondary-text)]">
                     (Net = Expenses − Refunds)
                   </span>
@@ -237,7 +250,9 @@ export function BudgetScreen({ initialMonthKey = '2025-03' }: BudgetScreenProps)
                   </span>
                   <span
                     className={
-                      metrics.isOverspent ? 'font-bold text-rose-700' : 'font-bold text-[var(--color-primary)]'
+                      metrics.isOverspent
+                        ? 'font-bold text-rose-700'
+                        : 'font-bold text-[var(--color-primary)]'
                     }
                   >
                     {metrics.utilizationPercent}% utilized
@@ -270,7 +285,8 @@ export function BudgetScreen({ initialMonthKey = '2025-03' }: BudgetScreenProps)
 
                 <div className="rounded-xl border border-[var(--color-border)] bg-[#ebf6f1]/50 p-2.5">
                   <span className="block text-[11px] font-semibold text-[var(--color-secondary-text)]">
-                    Rollover {monthData.rolloverMonthLabel ? `(${monthData.rolloverMonthLabel})` : ''}
+                    Rollover{' '}
+                    {monthData.rolloverMonthLabel ? `(${monthData.rolloverMonthLabel})` : ''}
                   </span>
                   <span className="mt-0.5 block text-[15px] font-semibold text-[var(--color-primary)]">
                     +{formatInrPaise(monthData.rolloverPaise)}
@@ -388,7 +404,9 @@ export function BudgetScreen({ initialMonthKey = '2025-03' }: BudgetScreenProps)
                       <div className="h-2 w-full overflow-hidden rounded-full bg-[#dae5e0]">
                         <div
                           className={`h-full rounded-full ${
-                            usedPercent > 80 ? 'bg-[var(--color-soft-green)]' : 'bg-[var(--color-primary)]'
+                            usedPercent > 80
+                              ? 'bg-[var(--color-soft-green)]'
+                              : 'bg-[var(--color-primary)]'
                           }`}
                           style={{ width: `${Math.min(usedPercent, 100)}%` }}
                         />
@@ -432,7 +450,8 @@ export function BudgetScreen({ initialMonthKey = '2025-03' }: BudgetScreenProps)
                     Edit Budget Allocation ({monthData.monthLabel})
                   </h4>
                   <p className="mt-1 text-xs text-[var(--color-secondary-text)]">
-                    In mock mode, budgets are pre-configured. Edits will take effect once persistent storage is enabled.
+                    In mock mode, budgets are pre-configured. Edits will take effect once persistent
+                    storage is enabled.
                   </p>
                   <div className="mt-3 flex justify-end gap-2">
                     <button
@@ -455,4 +474,3 @@ export function BudgetScreen({ initialMonthKey = '2025-03' }: BudgetScreenProps)
     </div>
   );
 }
-

@@ -7,4 +7,3 @@ export default async function BudgetPage() {
 
   return <BudgetScreen initialMonthKey="2025-03" />;
 }
-

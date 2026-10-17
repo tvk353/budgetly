@@ -8,7 +8,10 @@ describe('MoreHubScreen', () => {
     render(<MoreHubScreen />);
 
     expect(screen.getByRole('heading', { level: 1, name: 'More & Settings' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Back' })).toHaveAttribute('href', '/workspace/household');
+    expect(screen.getByRole('link', { name: 'Back' })).toHaveAttribute(
+      'href',
+      '/workspace/household',
+    );
     expect(
       screen.getByRole('link', { name: /switch workspace, currently household with 2 members/i }),
     ).toHaveAttribute('href', '/workspaces');
@@ -30,9 +33,7 @@ describe('MoreHubScreen', () => {
   it('renders the Features & Insights bento shortcuts', () => {
     render(<MoreHubScreen />);
 
-    expect(
-      screen.getByRole('region', { name: 'Features and Insights' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Features and Insights' })).toBeInTheDocument();
     expect(screen.getByText('Trackers & Projects')).toBeInTheDocument();
     expect(screen.getByText('Goals, trips & micro-ledgers')).toBeInTheDocument();
     expect(screen.getByText('2 active')).toBeInTheDocument();
@@ -47,9 +48,7 @@ describe('MoreHubScreen', () => {
   it('renders Household Stewardship with valid link to workspaces', () => {
     render(<MoreHubScreen />);
 
-    expect(
-      screen.getByRole('region', { name: 'Household Stewardship' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Household Stewardship' })).toBeInTheDocument();
     expect(screen.getByText('Household Members')).toBeInTheDocument();
     expect(screen.getByText('Aarav & Priya')).toBeInTheDocument();
     expect(screen.getByText('Synced')).toBeInTheDocument();

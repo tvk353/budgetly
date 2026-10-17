@@ -72,7 +72,8 @@ export function MoreHubScreen({ initialData = mockMoreHubData }: MoreHubScreenPr
           >
             <p className="font-semibold text-[var(--color-main-text)]">More &amp; Settings Hub:</p>
             <p className="mt-1">
-              Access household management, workspace switching, category administration, trash recovery, and data export settings.
+              Access household management, workspace switching, category administration, trash
+              recovery, and data export settings.
             </p>
           </div>
         )}
@@ -169,7 +170,10 @@ export function MoreHubScreen({ initialData = mockMoreHubData }: MoreHubScreenPr
                 <span className="rounded-full bg-[#baefcc] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-primary)]">
                   {data.activeTrackersCount} active
                 </span>
-                <DashboardIcon name="chevron-right" className="h-4 w-4 text-[var(--color-secondary-text)]" />
+                <DashboardIcon
+                  name="chevron-right"
+                  className="h-4 w-4 text-[var(--color-secondary-text)]"
+                />
               </div>
             </button>
 
@@ -185,7 +189,10 @@ export function MoreHubScreen({ initialData = mockMoreHubData }: MoreHubScreenPr
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--color-light-teal)] text-[var(--color-primary)]">
                   <DashboardIcon name="bar-chart" className="h-5 w-5" />
                 </div>
-                <DashboardIcon name="arrow-outward" className="h-4 w-4 text-[var(--color-secondary-text)]" />
+                <DashboardIcon
+                  name="arrow-outward"
+                  className="h-4 w-4 text-[var(--color-secondary-text)]"
+                />
               </div>
               <div>
                 <p className="text-[14px] font-semibold text-[var(--color-main-text)]">Reports</p>
@@ -207,7 +214,10 @@ export function MoreHubScreen({ initialData = mockMoreHubData }: MoreHubScreenPr
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--color-light-teal)] text-[var(--color-primary)]">
                   <DashboardIcon name="category" className="h-5 w-5" />
                 </div>
-                <DashboardIcon name="arrow-outward" className="h-4 w-4 text-[var(--color-secondary-text)]" />
+                <DashboardIcon
+                  name="arrow-outward"
+                  className="h-4 w-4 text-[var(--color-secondary-text)]"
+                />
               </div>
               <div>
                 <p className="text-[14px] font-semibold text-[var(--color-main-text)]">Envelopes</p>
@@ -265,7 +275,10 @@ export function MoreHubScreen({ initialData = mockMoreHubData }: MoreHubScreenPr
                 <span className="rounded-full bg-[var(--color-light-teal)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-primary)]">
                   Synced
                 </span>
-                <DashboardIcon name="chevron-right" className="h-4 w-4 text-[var(--color-secondary-text)]" />
+                <DashboardIcon
+                  name="chevron-right"
+                  className="h-4 w-4 text-[var(--color-secondary-text)]"
+                />
               </div>
             </button>
 
@@ -326,7 +339,10 @@ export function MoreHubScreen({ initialData = mockMoreHubData }: MoreHubScreenPr
                   </p>
                 </div>
               </div>
-              <DashboardIcon name="chevron-right" className="h-4 w-4 text-[var(--color-secondary-text)]" />
+              <DashboardIcon
+                name="chevron-right"
+                className="h-4 w-4 text-[var(--color-secondary-text)]"
+              />
             </button>
 
             {/* Row 2: Data Export & Backup */}
@@ -350,7 +366,10 @@ export function MoreHubScreen({ initialData = mockMoreHubData }: MoreHubScreenPr
                   </p>
                 </div>
               </div>
-              <DashboardIcon name="chevron-right" className="h-4 w-4 text-[var(--color-secondary-text)]" />
+              <DashboardIcon
+                name="chevron-right"
+                className="h-4 w-4 text-[var(--color-secondary-text)]"
+              />
             </button>
           </div>
         </section>
@@ -385,7 +404,10 @@ export function MoreHubScreen({ initialData = mockMoreHubData }: MoreHubScreenPr
                   </p>
                 </div>
               </div>
-              <DashboardIcon name="chevron-right" className="h-4 w-4 text-[var(--color-secondary-text)]" />
+              <DashboardIcon
+                name="chevron-right"
+                className="h-4 w-4 text-[var(--color-secondary-text)]"
+              />
             </button>
 
             {/* Row 2: Security & Privacy */}
@@ -411,7 +433,10 @@ export function MoreHubScreen({ initialData = mockMoreHubData }: MoreHubScreenPr
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-[var(--color-primary)]" />
-                <DashboardIcon name="chevron-right" className="h-4 w-4 text-[var(--color-secondary-text)]" />
+                <DashboardIcon
+                  name="chevron-right"
+                  className="h-4 w-4 text-[var(--color-secondary-text)]"
+                />
               </div>
             </button>
 
@@ -434,7 +459,10 @@ export function MoreHubScreen({ initialData = mockMoreHubData }: MoreHubScreenPr
                   </p>
                 </div>
               </div>
-              <DashboardIcon name="chevron-right" className="h-4 w-4 text-[var(--color-secondary-text)]" />
+              <DashboardIcon
+                name="chevron-right"
+                className="h-4 w-4 text-[var(--color-secondary-text)]"
+              />
             </Link>
           </div>
         </section>
@@ -455,4 +483,3 @@ export function MoreHubScreen({ initialData = mockMoreHubData }: MoreHubScreenPr
     </div>
   );
 }
-
