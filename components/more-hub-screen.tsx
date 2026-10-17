@@ -146,11 +146,9 @@ export function MoreHubScreen({ initialData = mockMoreHubData }: MoreHubScreenPr
 
           <div className="grid grid-cols-2 gap-2.5">
             {/* Shortcut 1: Trackers & Projects */}
-            <button
-              type="button"
-              onClick={() => handleUnavailable('Trackers & Projects')}
-              title="Trackers & Projects is not available yet"
-              aria-label="Trackers & Projects, 2 active, not available yet"
+            <Link
+              href="/trackers"
+              aria-label="Trackers & Projects, 2 active"
               className="col-span-2 flex cursor-pointer items-center justify-between rounded-2xl border border-[var(--color-border)] bg-white p-4 text-left transition-transform active:scale-[0.985]"
             >
               <div className="flex items-center gap-3">
@@ -175,7 +173,7 @@ export function MoreHubScreen({ initialData = mockMoreHubData }: MoreHubScreenPr
                   className="h-4 w-4 text-[var(--color-secondary-text)]"
                 />
               </div>
-            </button>
+            </Link>
 
             {/* Shortcut 2: Financial Reports */}
             <button
