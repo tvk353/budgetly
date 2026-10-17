@@ -34,6 +34,12 @@ The PRD defines what the application must do from the user's point of view.
 - Possible duplicates generate a warning but can still be saved.
 - Historical transactions can be edited.
 - Concurrent edits use last successful save wins, with audit history.
+- Labels are optional and independent of transaction categories.
+- Users can select an existing label or create a new one while adding or editing a transaction.
+- Labels are reusable across all categories within the same workspace.
+- Label names are trimmed and matched case-insensitively to avoid duplicates.
+- Labels can be used to filter transactions and reports.
+- Deleting a label must not delete its associated transactions.
 
 3. Monthly budgets
 

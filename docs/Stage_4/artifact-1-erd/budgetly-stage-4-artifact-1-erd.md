@@ -394,3 +394,12 @@ Use one category scope per user, and a many-to-many `workspace_category_scopes` 
 Same-named custom categories may exist in different user scopes. The UI must disambiguate collisions with the category owner's display name; reports continue to group by category ID. Built-in category names remain globally reserved. Scope access must not be inferred from creator ID alone.
 
 `background_jobs` is the sole lifecycle status source. Export and backup detail rows contain task parameters/results only. Per-user annual exports use each recipient's private Drive destination and authenticated Budgetly links. These are design decisions only; no schema has been executed.
+
+## Reusable transaction labels (added)
+
+- `labels` belongs to one workspace and stores reusable, user-created label names such as `Amazon`, `D-Mart`, or `Local Store`.
+- `transactions.label_id` is optional and references a label in the same workspace using `(workspace_id, label_id)`.
+- Labels are independent of categories and can be used with any category.
+- Active label names are unique case-insensitively within a workspace. Different workspaces may use the same label name.
+- Deleting a label must detach it from transactions (`label_id` becomes null); it must not delete transactions.
+- Label filtering is a transaction-list/report concern and must not alter budget eligibility or category totals.

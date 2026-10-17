@@ -47,3 +47,12 @@ Use this before approving or executing the migration package.
 - [ ] Export recipient is explicit; each recipient's private Drive destination and authorization are rechecked.
 - [ ] Queue/detail type cardinality is enforced, not merely assumed by application code.
 - [ ] DDL and RLS grants/policies are statically reviewed together before any execution.
+
+## Label review checks
+
+- [ ] `transactions.label_id` can be null for existing and new transactions.
+- [ ] Composite FK prevents attaching a label from another workspace.
+- [ ] Active label names are unique case-insensitively within a workspace.
+- [ ] Deleting/archiving a label detaches it without deleting transactions.
+- [ ] Label operations are covered by workspace-member RLS and server validation.
+- [ ] Label changes do not affect budget eligibility, category totals, or refund calculations.

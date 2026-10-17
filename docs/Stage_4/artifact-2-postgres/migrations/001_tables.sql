@@ -131,10 +131,29 @@ create table public.workspace_category_visibility (
     unique (workspace_id, category_id)
 );
 
+-- Workspace-scoped reusable labels; independent of transaction categories.
+-- Names are unique case-insensitively within a workspace. Transaction links are optional.
+create table public.labels (
+    id uuid primary key default gen_random_uuid(),
+    workspace_id uuid not null references public.workspaces(id) on delete cascade,
+    name text not null check (char_length(btrim(name)) between 1 and 50),
+    created_by_user_id uuid references public.profiles(id) on delete set null,
+    deleted_at timestamptz,
+    deleted_by_user_id uuid references public.profiles(id) on delete set null,
+    purge_after timestamptz,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    unique (workspace_id, id),
+    check (name = btrim(name)),
+    check ((deleted_at is null and deleted_by_user_id is null and purge_after is null) or
+           (deleted_at is not null and purge_after is not null and purge_after >= deleted_at))
+);
+
 create table public.transactions (
     id uuid primary key default gen_random_uuid(),
     workspace_id uuid not null references public.workspaces(id) on delete cascade,
     category_id uuid references public.categories(id) on delete set null,
+    label_id uuid,
     needs_category_correction boolean not null default false,
     linked_expense_id uuid,
     type text not null check (type in ('expense', 'refund')),
@@ -148,6 +167,8 @@ create table public.transactions (
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now(),
     unique (workspace_id, id),
+    foreign key (workspace_id, label_id)
+        references public.labels(workspace_id, id) on delete set null (label_id),
     foreign key (workspace_id, linked_expense_id)
         references public.transactions(workspace_id, id) on delete set null (linked_expense_id),
     check ((category_id is null and needs_category_correction) or

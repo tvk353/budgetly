@@ -76,3 +76,12 @@ These scenarios are acceptance requirements. Exact routes, RPC names, HTTP statu
 - Replaying an idempotency key with the same request returns the original result; a different request with the same key returns `409 IDEMPOTENCY_KEY_REUSED`.
 - Pagination rejects mixed cursor/page-number parameters and handles stable sort/filter-bound cursors.
 - Purge/recovery is idempotent and tombstones prevent backup resurrection.
+
+## Reusable labels scenarios (planned; not executed)
+
+1. Create `Amazon` in a workspace, then reuse it for transactions in Groceries and Shopping.
+2. Create `Amazon` in another workspace; verify it is a separate label record.
+3. Reject `amazon` as a duplicate active label in the same workspace.
+4. Reject a transaction write that uses a label belonging to another workspace.
+5. Delete a label and verify associated transactions remain and return `label_id: null`.
+6. Filter transactions by label and verify budget totals remain unchanged.

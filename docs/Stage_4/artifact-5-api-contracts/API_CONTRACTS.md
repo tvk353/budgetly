@@ -428,3 +428,13 @@ This remains a contract draft. No OpenAPI validation or tests have been run as p
 - **Rate limits:** OTP send 5/account/hour and 20/IP/hour in addition to the approved 60-second cooldown and 3 verification attempts; invitations 5/user/hour and 20/IP/hour; general writes 60/user/minute. Return `429` and `Retry-After`; keep thresholds configurable.
 - **Export security:** each annual export is recipient-bound and private in the recipient's Drive. Download requires Budgetly authentication and a current authorization check.
 - **Implementation status:** OpenAPI remains a draft until completed against the full route catalogue and validated. These design updates do not claim a validator or tests were run.
+
+## Reusable labels
+
+- `GET /workspaces/{workspaceId}/labels`: list active labels in the authorized workspace.
+- `POST /workspaces/{workspaceId}/labels`: create a reusable label with `{ "name": "Amazon" }`.
+- Label names are trimmed, 1–50 characters, and unique case-insensitively among active labels in a workspace. Return `409` for an active duplicate.
+- Transaction create/update accepts optional `label_id` (UUID or null). A label must belong to the same workspace as the transaction.
+- Transaction responses include nullable `label_id`. Clients may resolve the display name from the workspace labels list.
+- Labels can be used with any category. Label filtering must not change budget calculations or category totals.
+- Label deletion is a soft-delete operation and detaches the label from transactions; it never deletes transactions.

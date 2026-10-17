@@ -161,6 +161,46 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '409': { $ref: '#/components/responses/Conflict' }
         '422': { $ref: '#/components/responses/ValidationError' }
+  /workspaces/{workspaceId}/labels:
+    get:
+      tags: [Transactions]
+      summary: List reusable labels in a workspace
+      parameters:
+        - { $ref: '#/components/parameters/WorkspaceId' }
+      responses:
+        '200':
+          description: Active labels in the workspace
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Label' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Transactions]
+      summary: Create a reusable workspace label
+      parameters:
+        - { $ref: '#/components/parameters/WorkspaceId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LabelCreate' }
+      responses:
+        '201':
+          description: Label created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Label' }
+        '409': { description: Active label with this name already exists in workspace }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
   /workspaces/{workspaceId}/transactions:
     parameters:
       - $ref: '#/components/parameters/WorkspaceId'
@@ -399,6 +439,7 @@ components:
         amount: { $ref: '#/components/schemas/Amount' }
         date: { type: string, format: date }
         category_id: { type: string, format: uuid }
+        label_id: { type: string, format: uuid, nullable: true }
         description: { type: string, maxLength: 50 }
         notes: { type: string, maxLength: 500 }
         linked_expense_id: { type: string, format: uuid }
@@ -427,6 +468,7 @@ components:
         currency: { type: string, const: INR }
         date: { type: string, format: date }
         category_id: { type: [string, 'null'], format: uuid }
+        label_id: { type: [string, 'null'], format: uuid }
         needs_category_correction: { type: boolean }
         description: { type: [string, 'null'], maxLength: 50 }
         notes: { type: [string, 'null'], maxLength: 500 }
@@ -459,6 +501,22 @@ components:
         - { $ref: '#/components/schemas/CursorPage' }
         - { $ref: '#/components/schemas/PageNumberPage' }
       description: Use exactly one pagination style per endpoint; default limit 20, maximum 100.
+    Label:
+      type: object
+      required: [id, workspace_id, name, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        workspace_id: { type: string, format: uuid }
+        name: { type: string, minLength: 1, maxLength: 50 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+      additionalProperties: false
+    LabelCreate:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 50 }
+      additionalProperties: false
     BudgetUpsert:
       type: object
       required: [base_budget, rollover]

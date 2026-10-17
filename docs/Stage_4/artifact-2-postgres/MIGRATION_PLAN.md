@@ -72,3 +72,7 @@ No migration was run. No database was created, changed, or contacted.
 7. Rollback for destructive operations uses a verified recovery path; do not assume all DDL is automatically reversible.
 
 This is a plan only; no migration was run.
+
+## Reusable labels change
+
+Add the `labels` table before transactions are used by the application, add nullable `transactions.label_id`, a same-workspace composite foreign key, and indexes for active-name uniqueness and label filtering. Existing transactions remain valid with `label_id = NULL`. This is a draft design change only; no migration was executed. If this schema has already been deployed, create a separately reviewed forward migration rather than editing an applied migration.

@@ -15,3 +15,7 @@ This package contains the cross-artifact reconciliation and updated design draft
 ## Status and restrictions
 
 Design-only. SQL is still a draft and has not been executed. No database was connected to or changed, no tests were executed, no OAuth connections/secrets/cron jobs were created, and Stage 6 has not started. Stage 4 implementation readiness is not approved.
+
+## Reusable labels addendum
+
+This revision adds workspace-scoped reusable transaction labels across the ERD, draft SQL, RLS, API schemas, and planned test coverage. See `LABELS_PRD_ADDENDUM.md`. No tests or migrations were run/applied. The source PRD was not present in the supplied archive, so the addendum is provided for merging into the canonical PRD.

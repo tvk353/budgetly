@@ -46,6 +46,18 @@ create unique index trackers_active_name_uq
     on public.trackers (workspace_id, lower(btrim(name)))
     where deleted_at is null;
 
+create unique index labels_active_name_workspace_uq
+    on public.labels (workspace_id, lower(btrim(name)))
+    where deleted_at is null;
+
+create index labels_workspace_created_idx
+    on public.labels (workspace_id, created_at desc)
+    where deleted_at is null;
+
+create index transactions_workspace_label_date_idx
+    on public.transactions (workspace_id, label_id, transaction_date desc)
+    where deleted_at is null and label_id is not null;
+
 create index transactions_workspace_date_idx
     on public.transactions (workspace_id, transaction_date desc, created_at desc)
     where deleted_at is null;

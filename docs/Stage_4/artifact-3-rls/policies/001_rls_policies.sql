@@ -112,6 +112,7 @@ alter table public.workspace_category_scopes enable row level security;
 alter table public.idempotency_records enable row level security;
 alter table public.categories enable row level security;
 alter table public.workspace_category_visibility enable row level security;
+alter table public.labels enable row level security;
 alter table public.transactions enable row level security;
 alter table public.monthly_budgets enable row level security;
 alter table public.savings_funds enable row level security;
@@ -207,6 +208,19 @@ create policy category_visibility_update_owner on public.workspace_category_visi
 create policy category_visibility_delete_owner on public.workspace_category_visibility
   for delete to authenticated
   using (public.is_active_workspace_owner(workspace_id));
+
+-- Labels: reusable across categories, scoped to the active workspace.
+-- Server handlers should normalize/trim names; active names are unique case-insensitively.
+grant select, insert, update, delete on public.labels to authenticated;
+create policy labels_select_member on public.labels
+  for select to authenticated using (public.is_active_workspace_member(workspace_id));
+create policy labels_insert_member on public.labels
+  for insert to authenticated with check (public.is_active_workspace_member(workspace_id));
+create policy labels_update_member on public.labels
+  for update to authenticated using (public.is_active_workspace_member(workspace_id))
+  with check (public.is_active_workspace_member(workspace_id));
+create policy labels_delete_member on public.labels
+  for delete to authenticated using (public.is_active_workspace_member(workspace_id));
 
 -- Ordinary transactions: all active members can manage household finances.
 grant select, insert, update, delete on public.transactions to authenticated;

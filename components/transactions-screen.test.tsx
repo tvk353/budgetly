@@ -90,3 +90,28 @@ describe('TransactionsScreen', () => {
     expect(screen.queryByText("Nature's Basket Groceries")).not.toBeInTheDocument();
   });
 });
+
+it('opens Add Expense, validates required fields, and adds a mock expense to the ledger', () => {
+  renderTransactions();
+  fireEvent.click(screen.getByRole('button', { name: 'Add transaction' }));
+  expect(screen.getByRole('dialog', { name: 'Add Expense' })).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: /Save Expense/ }));
+  expect(screen.getByRole('alert')).toHaveTextContent(/amount greater than/i);
+
+  fireEvent.change(screen.getByRole('textbox', { name: 'Amount' }), {
+    target: { value: '123.45' },
+  });
+  fireEvent.change(screen.getByLabelText('Category *'), { target: { value: 'Groceries' } });
+  fireEvent.change(screen.getByLabelText(/Label/), { target: { value: 'Amazon' } });
+  fireEvent.change(screen.getByLabelText(/Description/), {
+    target: { value: 'Test grocery purchase' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: /Save Expense/ }));
+
+  expect(screen.queryByRole('dialog', { name: 'Add Expense' })).not.toBeInTheDocument();
+  expect(screen.getByText('Test grocery purchase')).toBeInTheDocument();
+  expect(
+    screen.getByRole('article', { name: /Test grocery purchase, Groceries, ₹123\.45/ }),
+  ).toBeInTheDocument();
+});

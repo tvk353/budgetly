@@ -124,3 +124,17 @@ Stage 5 may now proceed with UI/UX design. Use these UX requirements from Stage 
 - Export/download actions must explain that files are private and access is checked at download time.
 
 **No Stage 6 scaffold is authorized by this document.** Database execution, test execution, deployments, and credential integrations require separate explicit approval.
+
+## Addendum — reusable transaction labels
+
+**Product decision:** Labels are optional, reusable across all categories, and scoped to a workspace. Examples include `Amazon`, `D-Mart`, and `Local Store`. Labels do not replace categories and do not affect budget calculations.
+
+Cross-artifact updates in this revision:
+
+- ERD: add `labels` and optional transaction label relationship.
+- PostgreSQL draft: add `public.labels`, nullable `transactions.label_id`, same-workspace composite FK, uniqueness and query indexes.
+- RLS: scope label access to active workspace members.
+- API/OpenAPI: add label list/create endpoints and optional `label_id` on transactions.
+- Tests: add planned database, authorization, uniqueness, cross-workspace and behavior coverage.
+
+This is a documentation/schema-draft update only. No migrations or tests were executed. The original PRD was not included in the supplied Stage 4 archive; update the PRD separately so its functional requirements match this addendum.

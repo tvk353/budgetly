@@ -3,6 +3,7 @@
 import { useState } from 'react';
 
 import { DashboardIcon, type DashboardIconName } from '@/components/dashboard-icon';
+import { AddExpenseSheet, type NewExpenseInput } from '@/components/add-expense-sheet';
 import { HouseholdBottomNavigation } from '@/components/household-bottom-navigation';
 import { formatInrPaise } from '@/lib/household-dashboard-data';
 import {
@@ -88,6 +89,7 @@ function TransactionRow({ transaction }: { transaction: DatedMockTransaction }) 
 
 export function TransactionsScreen({
   transactions,
+  todayKey,
   monthLabel,
   monthPrefix,
   monthExpensePaise,
@@ -104,13 +106,72 @@ export function TransactionsScreen({
   netSpentPaise: number;
   transactionCount: number;
 }) {
+  const [showAddExpense, setShowAddExpense] = useState(false);
+  const [visibleTransactions, setVisibleTransactions] = useState(transactions);
   const [query, setQuery] = useState('');
   const [type, setType] = useState<TransactionTypeFilter>('all');
   const [period, setPeriod] = useState<TransactionPeriodFilter>('this-month');
   const [category, setCategory] = useState('all');
-  const filtered = filterTransactions(transactions, { query, type, period, category }, monthPrefix);
+  const filtered = filterTransactions(
+    visibleTransactions,
+    { query, type, period, category },
+    monthPrefix,
+  );
   const groups = groupTransactionsByDay(filtered);
-  const categories = Array.from(new Set(transactions.map((item) => item.category))).sort();
+  const categories = Array.from(new Set(visibleTransactions.map((item) => item.category))).sort();
+
+  function handleSaveExpense(expense: NewExpenseInput) {
+    const date = expense.date;
+    const dateObject = new Date(`${date}T12:00:00+05:30`);
+    const dateLabel = new Intl.DateTimeFormat('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    }).format(dateObject);
+    const today = date === todayKey;
+    const yesterdayDate = new Date(`${todayKey}T12:00:00+05:30`);
+    yesterdayDate.setUTCDate(yesterdayDate.getUTCDate() - 1);
+    const yesterdayKey = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(yesterdayDate);
+    const record: DatedMockTransaction = {
+      id: `expense-${Date.now()}`,
+      description: expense.description || expense.category,
+      amountPaise: expense.amountPaise,
+      type: 'expense',
+      date,
+      dateLabel,
+      dayGroup: today ? 'Today' : date === yesterdayKey ? 'Yesterday' : dateLabel,
+      category: expense.category,
+      detail: expense.notes || undefined,
+      icon:
+        expense.category === 'Groceries'
+          ? 'cart'
+          : expense.category === 'Dining'
+            ? 'dining'
+            : expense.category === 'Utilities'
+              ? 'bolt'
+              : expense.category === 'Transport'
+                ? 'gas'
+                : expense.category === 'Healthcare'
+                  ? 'medicine'
+                  : expense.category === 'Entertainment'
+                    ? 'movie'
+                    : 'cart',
+    };
+    setVisibleTransactions((current) =>
+      [record, ...current].sort((a, b) => b.date.localeCompare(a.date)),
+    );
+    setShowAddExpense(false);
+    setType('all');
+    setPeriod('all-dates');
+    setCategory('all');
+    setQuery('');
+  }
 
   return (
     <main
@@ -134,10 +195,9 @@ export function TransactionsScreen({
           <span className="text-[17px] font-bold text-[var(--color-primary)]">Budgetly</span>
           <button
             type="button"
-            disabled
-            aria-label="New transaction, not available yet"
-            title="New transaction is not available yet"
-            className="inline-flex min-h-11 items-center gap-1 rounded-full bg-[var(--color-primary)] px-3 text-[13px] font-semibold text-white opacity-75 disabled:cursor-not-allowed"
+            onClick={() => setShowAddExpense(true)}
+            aria-label="New transaction"
+            className="inline-flex min-h-11 items-center gap-1 rounded-full bg-[var(--color-primary)] px-3 text-[13px] font-semibold text-white"
           >
             <DashboardIcon name="plus" className="h-4 w-4" />
             New
@@ -306,10 +366,9 @@ export function TransactionsScreen({
       <div className="pointer-events-none fixed bottom-[calc(76px+1rem)] left-1/2 z-30 flex w-full max-w-[393px] -translate-x-1/2 justify-center px-5">
         <button
           type="button"
-          disabled
-          aria-label="Add transaction, not available yet"
-          title="Adding transactions is not available yet"
-          className="pointer-events-auto inline-flex min-h-12 items-center gap-2 rounded-full bg-[var(--color-primary)] px-5 text-[16px] font-semibold text-white opacity-80 shadow-[0_8px_24px_rgba(23,107,87,0.28)] disabled:cursor-not-allowed"
+          onClick={() => setShowAddExpense(true)}
+          aria-label="Add transaction"
+          className="pointer-events-auto inline-flex min-h-12 items-center gap-2 rounded-full bg-[var(--color-primary)] px-5 text-[16px] font-semibold text-white shadow-[0_8px_24px_rgba(23,107,87,0.28)]"
         >
           <DashboardIcon name="plus" className="h-5 w-5" />
           Add Transaction
@@ -317,6 +376,13 @@ export function TransactionsScreen({
       </div>
 
       <HouseholdBottomNavigation active="transactions" />
+      {showAddExpense && (
+        <AddExpenseSheet
+          todayKey={todayKey}
+          onClose={() => setShowAddExpense(false)}
+          onSave={handleSaveExpense}
+        />
+      )}
     </main>
   );
 }
