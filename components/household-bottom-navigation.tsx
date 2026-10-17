@@ -9,12 +9,16 @@ const items: Array<{
 }> = [
   { label: 'Home', icon: 'home', href: '/workspace/household' },
   { label: 'Transactions', icon: 'receipt', href: '/transactions' },
-  { label: 'Budget', icon: 'activity' },
-  { label: 'Savings', icon: 'savings' },
-  { label: 'More', icon: 'more' },
+  { label: 'Budget', icon: 'activity', href: '/budget' },
+  { label: 'Savings', icon: 'savings', href: '/savings' },
+  { label: 'More', icon: 'more', href: '/more' },
 ];
 
-export function HouseholdBottomNavigation({ active }: { active: 'home' | 'transactions' }) {
+export function HouseholdBottomNavigation({
+  active,
+}: {
+  active: 'home' | 'transactions' | 'budget' | 'savings' | 'more';
+}) {
   return (
     <nav
       aria-label="Main navigation"

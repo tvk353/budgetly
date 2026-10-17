@@ -70,6 +70,64 @@ test('Transactions screen renders and filters the mock ledger', async ({ page })
   await expect(page.getByText('Swiggy Food Delivery')).toHaveCount(0);
 });
 
+test('Budget screen renders formula, available surplus, category envelopes, and policy notice', async ({
+  page,
+}) => {
+  await signInAndChooseWorkspace(page, 'Household');
+  await expect(page).toHaveURL(/\/workspace\/household$/);
+  await page.getByRole('link', { name: 'Budget' }).click();
+
+  await expect(page).toHaveURL(/\/budget$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Monthly Budget' })).toBeVisible();
+  await expect(page.getByText('Available Surplus')).toBeVisible();
+  await expect(page.getByText('₹23,450.00')).toBeVisible();
+  await expect(page.getByText('Healthy Pace')).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2, name: 'Category Envelopes' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 3, name: 'Groceries' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Edit Budget Allocation/i })).toBeVisible();
+  await expect(
+    page.getByText(/Past months can be edited; only current month budget can be newly created/),
+  ).toBeVisible();
+});
+
+test('Savings screen renders total pooled savings, active goals, and isolation notice', async ({
+  page,
+}) => {
+  await signInAndChooseWorkspace(page, 'Household');
+  await expect(page).toHaveURL(/\/workspace\/household$/);
+  await page.getByRole('link', { name: 'Savings' }).click();
+
+  await expect(page).toHaveURL(/\/savings$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Savings Funds' })).toBeVisible();
+  await expect(page.getByText('Total Pooled Savings')).toBeVisible();
+  expect(await page.getByText('₹3,45,000.00').count()).toBeGreaterThan(0);
+  await expect(page.getByRole('heading', { level: 2, name: 'Active Goals' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 3, name: 'Emergency Fund' })).toBeVisible();
+  await expect(
+    page.getByText(/Savings are completely isolated from your monthly spending budget/),
+  ).toBeVisible();
+});
+
+test('More Hub screen renders user profile, feature shortcuts, stewardship, and sign out', async ({
+  page,
+}) => {
+  await signInAndChooseWorkspace(page, 'Household');
+  await expect(page).toHaveURL(/\/workspace\/household$/);
+  await page.getByRole('link', { name: 'More' }).click();
+
+  await expect(page).toHaveURL(/\/more$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'More & Settings' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2, name: 'Aarav Sharma' })).toBeVisible();
+  await expect(page.getByText('Trackers & Projects')).toBeVisible();
+  await expect(page.getByText('Household Members')).toBeVisible();
+  await expect(page.getByText('Trash & Recovery')).toBeVisible();
+
+  // Test sign out link returns to welcome screen
+  await page.getByRole('link', { name: 'Sign Out of Budgetly' }).click();
+  await expect(page).toHaveURL(/\//);
+  await expect(page.getByRole('heading', { name: /log in to your workspace/i })).toBeVisible();
+});
+
 test('Personal workspace selection opens the Personal placeholder', async ({ page }) => {
   await signInAndChooseWorkspace(page, 'Personal');
 

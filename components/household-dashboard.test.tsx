@@ -109,8 +109,8 @@ describe('HouseholdDashboard', () => {
       'href',
       '/transactions',
     );
-    expect(screen.getByRole('button', { name: 'Budget, not available yet' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Savings, not available yet' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'More, not available yet' })).toBeDisabled();
+    expect(screen.getByRole('link', { name: 'Budget' })).toHaveAttribute('href', '/budget');
+    expect(screen.getByRole('link', { name: 'Savings' })).toHaveAttribute('href', '/savings');
+    expect(screen.getByRole('link', { name: 'More' })).toHaveAttribute('href', '/more');
   });
 });
