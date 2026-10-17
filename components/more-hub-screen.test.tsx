@@ -38,6 +38,10 @@ describe('MoreHubScreen', () => {
     expect(screen.getByText('Goals, trips & micro-ledgers')).toBeInTheDocument();
     expect(screen.getByText('2 active')).toBeInTheDocument();
 
+    // Trackers is now a real route — assert link destination
+    const trackersLink = screen.getByRole('link', { name: /trackers & projects/i });
+    expect(trackersLink).toHaveAttribute('href', '/trackers');
+
     expect(screen.getByText('Reports')).toBeInTheDocument();
     expect(screen.getByText('CSV export & trends')).toBeInTheDocument();
 
