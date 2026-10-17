@@ -75,7 +75,7 @@ describe('calculateBudgetSummary', () => {
 });
 
 describe('HouseholdDashboard', () => {
-  it('renders the main sections, primary metrics, recent transactions, and quick actions', () => {
+  it('renders the main sections, primary metrics, recent transactions, and floating add button', () => {
     const dashboard = getHouseholdDashboardData(new Date('2026-10-16T05:30:00.000Z'));
     render(<HouseholdDashboard dashboard={dashboard} />);
 
@@ -91,9 +91,29 @@ describe('HouseholdDashboard', () => {
     expect(screen.getByRole('heading', { name: 'Recent Transactions' })).toBeInTheDocument();
     expect(screen.getByText("Nature's Basket Groceries")).toBeInTheDocument();
     expect(screen.getByText('Paid by Priya')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Expense, not available yet' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Refund, not available yet' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Activity, not available yet' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Add expense' })).toBeEnabled();
+  });
+
+  it('opens Add Expense from Home and saves a mock transaction without a Paid by field', async () => {
+    const { fireEvent } = await import('@testing-library/react');
+    const dashboard = getHouseholdDashboardData(new Date('2026-10-16T05:30:00.000Z'));
+    render(<HouseholdDashboard dashboard={dashboard} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add expense' }));
+    const dialog = screen.getByRole('dialog', { name: 'Add Expense' });
+    expect(dialog).toBeInTheDocument();
+    expect(screen.queryByText('Paid by')).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Amount' }), {
+      target: { value: '125.50' },
+    });
+    fireEvent.change(screen.getByLabelText(/Category/), { target: { value: 'Groceries' } });
+    fireEvent.change(screen.getByLabelText(/Label/), { target: { value: 'Amazon' } });
+    fireEvent.change(screen.getByLabelText(/Description/), { target: { value: 'Test groceries' } });
+    fireEvent.click(screen.getByRole('button', { name: /Save Expense/ }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByText('Test groceries')).toBeInTheDocument();
   });
 
   it('provides an accessible workspace selector and marks only Home as current navigation', () => {

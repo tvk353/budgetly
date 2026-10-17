@@ -51,3 +51,14 @@ The companion CSV is the source of truth for case IDs and status. The suite is i
 - Replaying an idempotency key with the same request returns the original result; a different request with the same key returns `409 IDEMPOTENCY_KEY_REUSED`.
 - Pagination rejects mixed cursor/page-number parameters and handles stable sort/filter-bound cursors.
 - Purge/recovery is idempotent and tombstones prevent backup resurrection.
+
+## Label coverage (planned; not executed)
+
+- LAB-01: active workspace members can list/create labels only in an authorized workspace.
+- LAB-02: unrelated users cannot read or mutate another workspace's labels.
+- LAB-03: duplicate active names differing only by case/outer whitespace are rejected within one workspace.
+- LAB-04: the same label name is allowed in separate workspaces.
+- LAB-05: a transaction cannot reference a label from another workspace.
+- LAB-06: a transaction may omit its label; existing transactions remain valid.
+- LAB-07: deleting a label leaves transactions intact and clears their label reference.
+- LAB-08: labels are category-independent and do not change budget/category calculations.

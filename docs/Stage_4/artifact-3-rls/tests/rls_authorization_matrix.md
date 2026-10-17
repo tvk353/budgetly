@@ -37,3 +37,14 @@ This matrix describes the intended behavior for the current draft. “Allowed”
 8. Audit integrity: clients cannot forge or modify audit entries.
 9. Recovery: restoration requires current authorization and does not reactivate revoked invitations.
 10. Concurrency: simultaneous linked refunds cannot exceed the original expense amount; ownership transfer cannot leave zero or two owners.
+
+## Labels (planned; not executed)
+
+| Case                                                           | Expected result                    |
+| -------------------------------------------------------------- | ---------------------------------- |
+| Active workspace member reads labels for their workspace       | Allowed                            |
+| Active workspace member creates a label in their workspace     | Allowed subject to name validation |
+| User reads or writes labels in unrelated workspace             | Denied                             |
+| Transaction references a label from a different workspace      | Rejected by composite foreign key  |
+| Same active name repeated case-insensitively in same workspace | Rejected by unique index           |
+| Same label name exists in separate workspaces                  | Allowed                            |

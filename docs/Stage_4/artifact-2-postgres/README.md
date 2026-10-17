@@ -48,3 +48,7 @@ Product-owner decisions incorporated: custom categories use household-user scope
 - `background_jobs` owns status/attempt/timing lifecycle. `export_jobs` and `backup_runs` store task-specific fields only.
 - Export detail rows identify the authorized recipient and Drive file ID; Drive credentials must never be stored in job rows or logs.
 - All SQL remains unexecuted draft material. The DDL requires a full static consistency review before any separately approved execution.
+
+## Labels
+
+Labels are optional reusable names scoped to a workspace, not categories. The draft schema stores them in `public.labels` and references them through nullable `public.transactions.label_id`. Names are trimmed and compared case-insensitively for active uniqueness within one workspace.

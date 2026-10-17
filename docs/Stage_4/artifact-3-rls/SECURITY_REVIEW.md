@@ -31,3 +31,10 @@
 - [ ] Run all tests only in a disposable local Supabase/PostgreSQL environment after separate explicit approval.
 
 These are verification gates, not open product decisions. This document does not authorize SQL execution, migration application, or deployment.
+
+## Label security checks
+
+- Label RLS must scope every operation by active workspace membership.
+- Composite FK `(workspace_id, label_id)` must reject cross-workspace references even if a client submits a valid UUID.
+- Server handlers must trim names and handle case-insensitive duplicate conflicts without leaking data from other workspaces.
+- No label endpoint may accept a caller-supplied workspace identity without checking current membership.

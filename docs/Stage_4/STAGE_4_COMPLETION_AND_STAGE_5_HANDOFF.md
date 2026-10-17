@@ -38,3 +38,7 @@
 5. Review migration/rollback steps and verified recovery before applying migrations.
 
 These are implementation-readiness checks, not unresolved product choices and not blockers to Stage 5 UI/UX design.
+
+## Addendum — reusable transaction labels
+
+Stage 5 UI should include an optional Label field after Category in Add Expense. Users can select an existing workspace label or create one. Labels are reusable across categories and isolated by workspace. Include loading, empty, create, duplicate-name, and error states. This design addendum does not authorize applying a database migration.

@@ -1,5 +1,9 @@
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
 
+import { AddExpenseSheet, type NewExpenseInput } from '@/components/add-expense-sheet';
 import { DashboardIcon, type DashboardIconName } from '@/components/dashboard-icon';
 import { HouseholdBottomNavigation } from '@/components/household-bottom-navigation';
 import {
@@ -107,6 +111,37 @@ function TransactionRow({
 
 export function HouseholdDashboard({ dashboard }: { dashboard: HouseholdDashboardData }) {
   const { budget } = dashboard;
+  const [showAddExpense, setShowAddExpense] = useState(false);
+  const [recentTransactions, setRecentTransactions] = useState(dashboard.recentTransactions);
+  const todayKey = (() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  })();
+
+  function handleSaveExpense(expense: NewExpenseInput) {
+    const icon: RecentTransaction['icon'] =
+      expense.category === 'Dining'
+        ? 'dining'
+        : expense.category === 'Utilities'
+          ? 'utility'
+          : 'cart';
+    const template = dashboard.recentTransactions[0];
+    if (template) {
+      const newTransaction: RecentTransaction & { dateLabel: string } = {
+        ...template,
+        id: `local-${Date.now()}`,
+        description: expense.description || expense.category,
+        amountPaise: expense.amountPaise,
+        type: 'expense',
+        category: expense.category,
+        payer: undefined,
+        dateLabel: expense.date === todayKey ? 'Today' : expense.date,
+        icon,
+      };
+      setRecentTransactions((current) => [newTransaction, ...current].slice(0, 5));
+    }
+    setShowAddExpense(false);
+  }
   const circumference = 314.16;
   const strokeOffset = circumference * (1 - budget.progressRatio);
   const spendingLabel =
@@ -333,7 +368,15 @@ export function HouseholdDashboard({ dashboard }: { dashboard: HouseholdDashboar
         </section>
 
         <section aria-label="Quick actions" className="grid grid-cols-3 gap-2.5 pt-1">
-          <DisabledAction label="Expense" glyph="plus" primary />
+          <button
+            type="button"
+            onClick={() => setShowAddExpense(true)}
+            aria-label="Add expense"
+            title="Add expense"
+            className="flex h-12 w-12 min-w-0 items-center justify-center justify-self-center rounded-full border border-[var(--color-primary)] bg-[var(--color-primary)] text-white shadow-[0_4px_12px_rgba(23,107,87,0.16)]"
+          >
+            <DashboardIcon name="plus" className="h-6 w-6" />
+          </button>
           <DisabledAction label="Refund" glyph="plus" />
           <DisabledAction label="Activity" glyph="activity" />
         </section>
@@ -354,7 +397,7 @@ export function HouseholdDashboard({ dashboard }: { dashboard: HouseholdDashboar
             </button>
           </div>
           <ul className="divide-y divide-[var(--color-border)] overflow-hidden rounded-2xl border border-[var(--color-border)] bg-white shadow-[0_2px_8px_rgba(32,42,39,0.03)]">
-            {dashboard.recentTransactions.map((transaction) => (
+            {recentTransactions.map((transaction) => (
               <TransactionRow key={transaction.id} transaction={transaction} />
             ))}
           </ul>
@@ -362,6 +405,13 @@ export function HouseholdDashboard({ dashboard }: { dashboard: HouseholdDashboar
       </div>
 
       <HouseholdBottomNavigation active="home" />
+      {showAddExpense ? (
+        <AddExpenseSheet
+          todayKey={todayKey}
+          onClose={() => setShowAddExpense(false)}
+          onSave={handleSaveExpense}
+        />
+      ) : null}
     </main>
   );
 }
