@@ -7,6 +7,8 @@ The PRD defines what the application must do from the user's point of view.
 
 - Two users authenticate using email OTP.
 - Login persists until logout, session revocation, or a security event.
+- On iPhone, users who install the app as a Home Screen PWA must unlock it with a device passkey using Face ID, when available, each time the app is opened. This is an app lock layered over the authenticated session, not a replacement for account authentication.
+- If device passkey authentication is unavailable, users can unlock with email OTP.
 - Each user has a private Personal workspace.
 - Both users can access the Shared Household workspace.
 - The default workspace after login is Shared Household.
@@ -121,6 +123,8 @@ The PRD defines what the application must do from the user's point of view.
 - OTP expiry after five minutes, single use, maximum three attempts.
 - 60-second OTP resend cooldown and rate limits per account and IP.
 - Configurable rate limits for authentication, invitations, and write endpoints.
+- Verify passkey unlocks with server-validated WebAuthn challenges and assertions; never treat a client-only biometric check as authorization.
+- Biometric data remains on the user's device and is never received or stored by Budgetly.
 - Revoke sessions on logout-all-devices, account deletion, removal from a workspace, or a security event.
   Out of scope for the first version
   Bank integrations, automatic detection, OCR, offline entry, account balances, transaction attachments, mandatory category budgets, and spending alerts.

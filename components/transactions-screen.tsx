@@ -303,7 +303,7 @@ export function TransactionsScreen({
         </p>
       </div>
 
-      <div className="pointer-events-none fixed bottom-[76px] left-1/2 z-30 flex w-full max-w-[393px] -translate-x-1/2 justify-center px-5">
+      <div className="pointer-events-none fixed bottom-[calc(76px+1rem)] left-1/2 z-30 flex w-full max-w-[393px] -translate-x-1/2 justify-center px-5">
         <button
           type="button"
           disabled
