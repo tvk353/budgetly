@@ -1,3 +1,8 @@
 allowBuilds:
   esbuild: false
   unrs-resolver: false
+auditConfig:
+  ignoreGhsas:
+    # Withdrawn; remove once npm stops reporting it.
+    # https://github.com/advisories/GHSA-vfj7-8cjw-p6xm
+    - GHSA-vfj7-8cjw-p6xm

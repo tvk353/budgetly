@@ -85,19 +85,19 @@ The production server also listens at <http://127.0.0.1:3000>.
 
 ## Available commands
 
-| Command                         | Purpose                                                       |
-| ------------------------------- | ------------------------------------------------------------- |
-| `pnpm dev`                      | Start the local Next.js development server                    |
-| `pnpm build`                    | Create a production build                                     |
-| `pnpm start`                    | Serve the production build                                    |
-| `pnpm lint`                     | Run ESLint                                                    |
-| `pnpm typecheck`                | Check TypeScript types without emitting files                 |
-| `pnpm test`                     | Run unit and component tests once                             |
-| `pnpm test:watch`               | Run unit and component tests in watch mode                    |
-| `pnpm e2e`                      | Run Playwright browser tests                                  |
-| `pnpm format:check`             | Check formatting                                              |
-| `pnpm format`                   | Rewrite files using Prettier                                  |
-| `pnpm audit --audit-level high` | Check dependencies for high- and critical-severity advisories |
+| Command                         | Purpose                                                                      |
+| ------------------------------- | ---------------------------------------------------------------------------- |
+| `pnpm dev`                      | Start the local Next.js development server                                   |
+| `pnpm build`                    | Create a production build                                                    |
+| `pnpm start`                    | Serve the production build                                                   |
+| `pnpm lint`                     | Run ESLint                                                                   |
+| `pnpm typecheck`                | Check TypeScript types without emitting files                                |
+| `pnpm test`                     | Run unit and component tests once                                            |
+| `pnpm test:watch`               | Run unit and component tests in watch mode                                   |
+| `pnpm e2e`                      | Run Playwright browser tests                                                 |
+| `pnpm format:check`             | Check formatting                                                             |
+| `pnpm format`                   | Rewrite files using Prettier                                                 |
+| `pnpm audit --audit-level high` | Run the CI dependency audit with the documented withdrawn-advisory exception |
 
 ### Browser test setup
 
@@ -133,6 +133,13 @@ pull requests targeting `main`. It installs dependencies with a frozen lockfile,
 checks for high- and critical-severity dependency vulnerabilities, checks
 formatting, runs linting and TypeScript checks, runs unit tests, builds the app,
 and runs Playwright tests.
+
+The audit temporarily excludes only
+[GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm),
+the withdrawn `braces` advisory still returned by npm. The exception is defined
+in [`pnpm-workspace.yaml`](pnpm-workspace.yaml) so local and CI audits use the
+same policy. Remove it when the registry stops reporting the advisory. All other
+high- and critical-severity advisories continue to fail CI.
 
 The hosted [Renovate GitHub App](https://github.com/apps/renovate) is configured
 with its recommended preset to open dependency-update PRs, including supported
