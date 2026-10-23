@@ -90,7 +90,7 @@ describe('HouseholdDashboard', () => {
     expect(screen.getByText('+₹2,250.00')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Recent Transactions' })).toBeInTheDocument();
     expect(screen.getByText("Nature's Basket Groceries")).toBeInTheDocument();
-    expect(screen.getByText('Paid by Priya')).toBeInTheDocument();
+    expect(screen.getAllByText('Paid by Priya')).not.toHaveLength(0);
     expect(screen.getByRole('button', { name: 'Add expense' })).toBeEnabled();
   });
 
@@ -114,6 +114,30 @@ describe('HouseholdDashboard', () => {
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByText('Test groceries')).toBeInTheDocument();
+  });
+
+  it('adds a mock refund from the Refund action and keeps the Home plus action on expenses', async () => {
+    const { fireEvent } = await import('@testing-library/react');
+    const dashboard = getHouseholdDashboardData(new Date('2026-10-16T05:30:00.000Z'));
+    render(<HouseholdDashboard dashboard={dashboard} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add refund' }));
+    expect(screen.getByRole('dialog', { name: 'Add Refund' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Unlinked Refund' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Amount' }), {
+      target: { value: '10.00' },
+    });
+    fireEvent.change(screen.getByLabelText(/Category/), { target: { value: 'Groceries' } });
+    fireEvent.change(screen.getByLabelText(/Description/), {
+      target: { value: 'Mock household refund' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Save Refund/ }));
+
+    expect(screen.queryByRole('dialog', { name: 'Add Refund' })).not.toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /₹23,460\.00 available/ })).toBeInTheDocument();
+    expect(screen.getByText('+₹2,260.00')).toBeInTheDocument();
+    expect(screen.getByText('Mock household refund')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add expense' })).toBeEnabled();
   });
 
   it('provides an accessible workspace selector and marks only Home as current navigation', () => {
