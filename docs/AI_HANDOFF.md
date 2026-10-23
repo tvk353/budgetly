@@ -153,6 +153,22 @@
   `transactions.spec.ts`) rather than placing all unrelated flows in
   `login-flow.spec.ts`.
 
+## Dependency Update Automation
+
+- Renovate is configured in [`.github/renovate.json`](../.github/renovate.json)
+  for the hosted [Renovate GitHub App](https://github.com/apps/renovate).
+- A repository administrator must install the App, selecting only
+  `tvk353/budgetly`, and merge the configuration into the default branch.
+  Until both steps are complete, this configuration does not activate the bot.
+- The recommended preset detects supported dependencies, including pnpm
+  packages and GitHub Actions, and creates a Dependency Dashboard issue.
+  Related updates may be grouped into a single PR.
+- Automatic merging is disabled. Review update PRs and their CI results,
+  then merge manually. pnpm update PRs should include any required lockfile
+  changes so the frozen-lockfile CI installation remains reproducible.
+- The hosted App does not need a scheduled workflow or repository token
+  secret. Its PRs targeting `main` run the existing CI workflow.
+
 ## Next Screen and Unresolved Decisions
 
 - **Next features**: Add Refund modal (`screen_7_add_refund`) or
