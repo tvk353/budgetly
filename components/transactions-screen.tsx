@@ -3,11 +3,17 @@
 import { useState } from 'react';
 
 import { DashboardIcon, type DashboardIconName } from '@/components/dashboard-icon';
-import { AddExpenseSheet, type NewExpenseInput } from '@/components/add-expense-sheet';
+import {
+  AddExpenseSheet,
+  AddRefundSheet,
+  type NewExpenseInput,
+  type NewRefundInput,
+} from '@/components/add-expense-sheet';
 import { HouseholdBottomNavigation } from '@/components/household-bottom-navigation';
 import { formatInrPaise } from '@/lib/household-dashboard-data';
 import {
   filterTransactions,
+  getRefundableExpenses,
   groupTransactionsByDay,
   type DatedMockTransaction,
   type TransactionPeriodFilter,
@@ -107,7 +113,12 @@ export function TransactionsScreen({
   transactionCount: number;
 }) {
   const [showAddExpense, setShowAddExpense] = useState(false);
+  const [showAddRefund, setShowAddRefund] = useState(false);
   const [visibleTransactions, setVisibleTransactions] = useState(transactions);
+  const [refundSummaryAdjustment, setRefundSummaryAdjustment] = useState({
+    amountPaise: 0,
+    count: 0,
+  });
   const [query, setQuery] = useState('');
   const [type, setType] = useState<TransactionTypeFilter>('all');
   const [period, setPeriod] = useState<TransactionPeriodFilter>('this-month');
@@ -119,6 +130,7 @@ export function TransactionsScreen({
   );
   const groups = groupTransactionsByDay(filtered);
   const categories = Array.from(new Set(visibleTransactions.map((item) => item.category))).sort();
+  const refundableExpenses = getRefundableExpenses(visibleTransactions);
 
   function handleSaveExpense(expense: NewExpenseInput) {
     const date = expense.date;
@@ -167,6 +179,60 @@ export function TransactionsScreen({
       [record, ...current].sort((a, b) => b.date.localeCompare(a.date)),
     );
     setShowAddExpense(false);
+    setType('all');
+    setPeriod('all-dates');
+    setCategory('all');
+    setQuery('');
+  }
+
+  function handleSaveRefund(refund: NewRefundInput) {
+    const date = refund.date;
+    const dateObject = new Date(`${date}T12:00:00+05:30`);
+    const dateLabel = new Intl.DateTimeFormat('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    }).format(dateObject);
+    const yesterdayDate = new Date(`${todayKey}T12:00:00+05:30`);
+    yesterdayDate.setUTCDate(yesterdayDate.getUTCDate() - 1);
+    const yesterdayKey = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(yesterdayDate);
+    const linkedExpense = visibleTransactions.find(
+      (transaction) => transaction.id === refund.linkedExpenseId && transaction.type === 'expense',
+    );
+    const record: DatedMockTransaction = {
+      id: `refund-${Date.now()}`,
+      description:
+        refund.description ||
+        (linkedExpense
+          ? `${linkedExpense.description} refund`
+          : `${refund.label || refund.category} refund`),
+      amountPaise: refund.amountPaise,
+      type: 'refund',
+      date,
+      dateLabel,
+      dayGroup: date === todayKey ? 'Today' : date === yesterdayKey ? 'Yesterday' : dateLabel,
+      category: refund.category,
+      label: refund.label || undefined,
+      detail: refund.notes || (refund.linkedExpenseId ? 'Linked Refund' : 'Unlinked Refund'),
+      linkedExpenseId: refund.linkedExpenseId,
+      icon: 'refund',
+    };
+    setVisibleTransactions((current) =>
+      [record, ...current].sort((a, b) => b.date.localeCompare(a.date)),
+    );
+    if (date.startsWith(monthPrefix)) {
+      setRefundSummaryAdjustment((current) => ({
+        amountPaise: current.amountPaise + refund.amountPaise,
+        count: current.count + 1,
+      }));
+    }
+    setShowAddRefund(false);
     setType('all');
     setPeriod('all-dates');
     setCategory('all');
@@ -235,11 +301,17 @@ export function TransactionsScreen({
           {(
             [
               ['all', 'All'],
-              ['expense', `Expenses (${compactInr(monthExpensePaise)})`],
-              ['refund', `Refunds (${compactInr(monthRefundPaise)})`],
+              ['expense', 'Expenses'],
+              ['refund', 'Refunds'],
             ] as Array<[TransactionTypeFilter, string]>
           ).map(([filter, label]) => {
             const active = type === filter;
+            const filterLabel =
+              filter === 'expense'
+                ? `${label} (${compactInr(monthExpensePaise)})`
+                : filter === 'refund'
+                  ? `${label} (${compactInr(monthRefundPaise + refundSummaryAdjustment.amountPaise)})`
+                  : label;
             return (
               <button
                 key={filter}
@@ -248,7 +320,7 @@ export function TransactionsScreen({
                 onClick={() => setType(filter)}
                 className={`min-h-10 shrink-0 rounded-full border px-3.5 text-[13px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] ${active ? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white shadow-sm' : 'border-[var(--color-border)] bg-[#efeeeb] text-[var(--color-secondary-text)] hover:bg-[#e9e8e5]'}`}
               >
-                {label}
+                {filterLabel}
               </button>
             );
           })}
@@ -310,17 +382,28 @@ export function TransactionsScreen({
                 ILLUSTRATIVE MOCK LEDGER
               </p>
               <p className="truncate text-[13px] font-semibold text-[var(--color-main-text)]">
-                {monthLabel} • {transactionCount} transactions
+                {monthLabel} • {transactionCount + refundSummaryAdjustment.count} transactions
               </p>
             </div>
           </div>
           <div className="shrink-0 text-right">
             <span className="text-[10px] text-[var(--color-secondary-text)]">Net Spent</span>
             <p className="text-[17px] font-bold text-[var(--color-primary)]">
-              {formatInrPaise(netSpentPaise)}
+              {formatInrPaise(netSpentPaise - refundSummaryAdjustment.amountPaise)}
             </p>
           </div>
         </section>
+        <div className="-mt-2 flex justify-end">
+          <button
+            type="button"
+            onClick={() => setShowAddRefund(true)}
+            aria-label="Add refund"
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-[var(--color-primary)] bg-white px-4 text-sm font-semibold text-[var(--color-primary)]"
+          >
+            <DashboardIcon name="refund" className="h-4 w-4" />
+            Add Refund
+          </button>
+        </div>
 
         {groups.length ? (
           groups.map((group) => {
@@ -381,6 +464,14 @@ export function TransactionsScreen({
           todayKey={todayKey}
           onClose={() => setShowAddExpense(false)}
           onSave={handleSaveExpense}
+        />
+      )}
+      {showAddRefund && (
+        <AddRefundSheet
+          todayKey={todayKey}
+          refundableExpenses={refundableExpenses}
+          onClose={() => setShowAddRefund(false)}
+          onSave={handleSaveRefund}
         />
       )}
     </main>

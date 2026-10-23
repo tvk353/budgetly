@@ -27,6 +27,7 @@ export interface RecentTransaction {
   time?: string;
   payer?: string;
   relationship?: string;
+  linkedExpenseId?: string;
 }
 
 export interface HouseholdDashboardData {
@@ -77,14 +78,25 @@ export const householdDashboardMock = {
       payer: 'Aarav',
     },
     {
+      id: 'amazon-shoes',
+      description: 'Amazon.in — Puma Running Shoes',
+      amountPaise: 349_900,
+      type: 'expense',
+      category: 'Shopping',
+      icon: 'cart',
+      dateOffsetDays: 5,
+      payer: 'Priya',
+    },
+    {
       id: 'amazon-refund',
       description: 'Amazon Return Refund',
       amountPaise: 145_000,
       type: 'refund',
-      category: 'Refund',
+      category: 'Shopping',
       icon: 'refund',
       dateOffsetDays: 2,
       relationship: 'Linked to Amazon',
+      linkedExpenseId: 'amazon-shoes',
     },
     {
       id: 'electricity',

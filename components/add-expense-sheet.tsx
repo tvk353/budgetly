@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { DashboardIcon } from '@/components/dashboard-icon';
 import { formatInrPaise } from '@/lib/household-dashboard-data';
+import { parseInrAmountToPaise, type RefundableExpense } from '@/lib/transactions-data';
 
 const suggestedLabels = [
   'Amazon',
@@ -99,6 +100,25 @@ export interface NewExpenseInput {
   notes: string;
 }
 
+export interface NewRefundInput extends NewExpenseInput {
+  linkedExpenseId?: string;
+}
+
+type TransactionEntrySheetProps =
+  | {
+      mode: 'expense';
+      todayKey: string;
+      onClose: () => void;
+      onSave: (expense: NewExpenseInput) => void;
+    }
+  | {
+      mode: 'refund';
+      todayKey: string;
+      refundableExpenses: RefundableExpense[];
+      onClose: () => void;
+      onSave: (refund: NewRefundInput) => void;
+    };
+
 export function AddExpenseSheet({
   todayKey,
   onClose,
@@ -108,6 +128,37 @@ export function AddExpenseSheet({
   onClose: () => void;
   onSave: (expense: NewExpenseInput) => void;
 }) {
+  return (
+    <TransactionEntrySheet mode="expense" todayKey={todayKey} onClose={onClose} onSave={onSave} />
+  );
+}
+
+export function AddRefundSheet({
+  todayKey,
+  refundableExpenses,
+  onClose,
+  onSave,
+}: {
+  todayKey: string;
+  refundableExpenses: RefundableExpense[];
+  onClose: () => void;
+  onSave: (refund: NewRefundInput) => void;
+}) {
+  return (
+    <TransactionEntrySheet
+      mode="refund"
+      todayKey={todayKey}
+      refundableExpenses={refundableExpenses}
+      onClose={onClose}
+      onSave={onSave}
+    />
+  );
+}
+
+function TransactionEntrySheet(props: TransactionEntrySheetProps) {
+  const { mode, todayKey, onClose } = props;
+  const isRefund = mode === 'refund';
+  const refundableExpenses = mode === 'refund' ? props.refundableExpenses : [];
   const [amount, setAmount] = useState('');
   const [categories, setCategories] = useState<CategoryOption[]>(initialCategories);
   const [category, setCategory] = useState('');
@@ -127,14 +178,14 @@ export function AddExpenseSheet({
   const [description, setDescription] = useState('');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
+  const [refundType, setRefundType] = useState<'linked' | 'unlinked'>('linked');
+  const [linkedExpenseId, setLinkedExpenseId] = useState('');
 
-  const parsedAmount = Number(amount);
-  const amountPaise = Math.round(parsedAmount * 100);
-  const validAmount =
-    amount.trim() !== '' &&
-    Number.isFinite(parsedAmount) &&
-    parsedAmount > 0 &&
-    /^\d+(\.\d{1,2})?$/.test(amount.trim());
+  const amountPaise = parseInrAmountToPaise(amount) ?? 0;
+  const validAmount = amountPaise > 0;
+  const selectedExpense = refundableExpenses.find((expense) => expense.id === linkedExpenseId);
+  const linkedRefund = isRefund && refundType === 'linked';
+  const effectiveCategory = linkedRefund ? (selectedExpense?.category ?? '') : category;
 
   function addCategory() {
     const name = newCategoryName.trim();
@@ -162,7 +213,17 @@ export function AddExpenseSheet({
       setError('Enter an amount greater than ₹0 with up to two decimal places.');
       return;
     }
-    if (!category) {
+    if (linkedRefund && !selectedExpense) {
+      setError('Choose an expense with a remaining refundable amount, or select Unlinked Refund.');
+      return;
+    }
+    if (linkedRefund && selectedExpense && amountPaise > selectedExpense.remainingPaise) {
+      setError(
+        `Refund cannot exceed the remaining ${formatInrPaise(selectedExpense.remainingPaise)}.`,
+      );
+      return;
+    }
+    if (!effectiveCategory) {
       setError('Choose a category.');
       return;
     }
@@ -171,14 +232,22 @@ export function AddExpenseSheet({
       return;
     }
 
-    onSave({
+    const input = {
       amountPaise,
-      category,
+      category: effectiveCategory,
       label: label.trim(),
       date,
       description: description.trim(),
       notes: notes.trim(),
-    });
+    };
+    if (mode === 'refund') {
+      props.onSave({
+        ...input,
+        linkedExpenseId: linkedRefund ? selectedExpense?.id : undefined,
+      });
+    } else {
+      props.onSave(input);
+    }
   }
 
   return (
@@ -207,7 +276,7 @@ export function AddExpenseSheet({
               className="mb-1 h-1 w-9 rounded-full bg-[var(--color-border)]"
             />
             <h2 id="add-expense-title" className="text-[17px] font-bold">
-              Add Expense
+              {isRefund ? 'Add Refund' : 'Add Expense'}
             </h2>
           </div>
           <button
@@ -226,17 +295,111 @@ export function AddExpenseSheet({
             </span>
           </div>
 
+          {isRefund && (
+            <section className="space-y-2">
+              <div className="grid grid-cols-2 gap-1 rounded-xl border border-[var(--color-border)] bg-[#e5f0eb] p-1">
+                {(
+                  [
+                    ['linked', 'Linked to Expense'],
+                    ['unlinked', 'Unlinked Refund'],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={refundType === value}
+                    onClick={() => {
+                      setRefundType(value);
+                      setError('');
+                    }}
+                    className={`min-h-10 rounded-lg px-2 text-xs font-semibold ${refundType === value ? 'bg-[var(--color-primary)] text-white shadow-sm' : 'text-[var(--color-secondary-text)]'}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-[var(--color-secondary-text)]">
+                Linked refunds restore budget to the original expense category.
+              </p>
+              {linkedRefund && (
+                <div className="space-y-3 rounded-2xl border border-[var(--color-border)] bg-white p-4">
+                  <label htmlFor="refund-expense" className="block text-[13px] font-bold">
+                    Select expense <span className="text-red-600">*</span>
+                  </label>
+                  <select
+                    id="refund-expense"
+                    value={linkedExpenseId}
+                    onChange={(event) => {
+                      setLinkedExpenseId(event.target.value);
+                      setError('');
+                    }}
+                    className="min-h-11 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                  >
+                    <option value="">Choose an expense</option>
+                    {refundableExpenses.map((expense) => (
+                      <option key={expense.id} value={expense.id}>
+                        {expense.description} · Remaining {formatInrPaise(expense.remainingPaise)}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedExpense ? (
+                    <>
+                      <div className="grid grid-cols-3 gap-2 border-t border-[var(--color-border)] pt-3 text-xs">
+                        <div>
+                          <span className="block text-[var(--color-secondary-text)]">Original</span>
+                          <span className="font-semibold">
+                            {formatInrPaise(selectedExpense.amountPaise)}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="block text-[var(--color-secondary-text)]">Refunded</span>
+                          <span className="font-semibold">
+                            {formatInrPaise(selectedExpense.refundedPaise)}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="block text-[var(--color-primary)]">Remaining</span>
+                          <span className="font-bold text-[var(--color-primary)]">
+                            {formatInrPaise(selectedExpense.remainingPaise)}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAmount((selectedExpense.remainingPaise / 100).toFixed(2));
+                          setError('');
+                        }}
+                        className="min-h-10 w-full rounded-xl bg-[#e7f1ec] px-3 text-sm font-semibold text-[var(--color-primary)]"
+                      >
+                        Refund Full Amount ({formatInrPaise(selectedExpense.remainingPaise)})
+                      </button>
+                      <p className="text-xs text-[var(--color-secondary-text)]">
+                        Refund cannot exceed the remaining{' '}
+                        {formatInrPaise(selectedExpense.remainingPaise)}.
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-xs text-[var(--color-secondary-text)]">
+                      No refundable amount remains on the available expenses.
+                    </p>
+                  )}
+                </div>
+              )}
+            </section>
+          )}
+
           <section className="flex flex-col items-center py-4">
             <label
-              htmlFor="expense-amount"
+              htmlFor={isRefund ? 'refund-amount' : 'expense-amount'}
               className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-secondary-text)]"
             >
-              Amount
+              {isRefund ? 'Refund Amount' : 'Amount'}
             </label>
             <div className="mt-1 flex items-baseline gap-1">
               <span className="text-2xl font-semibold text-[var(--color-primary)]">₹</span>
               <input
-                id="expense-amount"
+                id={isRefund ? 'refund-amount' : 'expense-amount'}
                 aria-label="Amount"
                 inputMode="decimal"
                 autoComplete="off"
@@ -285,24 +448,34 @@ export function AddExpenseSheet({
             <label htmlFor="expense-category" className="block text-[13px] font-bold">
               Category <span className="text-red-600">*</span>
             </label>
+            {linkedRefund && selectedExpense && (
+              <p className="flex items-center gap-1 text-[11px] text-[var(--color-secondary-text)]">
+                <DashboardIcon name="lock" className="h-3.5 w-3.5" />
+                Inherited from the linked expense
+              </p>
+            )}
             <div className="flex gap-2">
               <div className="relative min-w-0 flex-1">
-                {category && (
+                {effectiveCategory && (
                   <DashboardIcon
-                    name={categories.find((item) => item.name === category)?.icon ?? categoryIcon}
+                    name={
+                      categories.find((item) => item.name === effectiveCategory)?.icon ??
+                      categoryIcon
+                    }
                     className="pointer-events-none absolute left-3 top-3 h-5 w-5 text-[var(--color-secondary-text)]"
                   />
                 )}
                 <select
                   id="expense-category"
-                  value={category}
+                  value={effectiveCategory}
+                  disabled={linkedRefund}
                   onChange={(event) => {
                     const selected = categories.find((item) => item.name === event.target.value);
                     setCategory(event.target.value);
                     if (selected) setCategoryIcon(selected.icon);
                     setError('');
                   }}
-                  className={`min-h-11 w-full appearance-none rounded-xl border border-[var(--color-border)] bg-white px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 ${category ? 'pl-10' : ''}`}
+                  className={`min-h-11 w-full appearance-none rounded-xl border border-[var(--color-border)] bg-white px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 disabled:bg-[#f0f2ef] disabled:text-[var(--color-secondary-text)] ${effectiveCategory ? 'pl-10' : ''}`}
                 >
                   <option value="">Select category</option>
                   {categories.map((item) => (
@@ -312,16 +485,18 @@ export function AddExpenseSheet({
                   ))}
                 </select>
               </div>
-              <button
-                type="button"
-                aria-label="Add custom category"
-                onClick={() => setAddingCategory((value) => !value)}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--color-primary)] bg-[#e7f1ec] text-[var(--color-primary)]"
-              >
-                <DashboardIcon name="plus" />
-              </button>
+              {!linkedRefund && (
+                <button
+                  type="button"
+                  aria-label="Add custom category"
+                  onClick={() => setAddingCategory((value) => !value)}
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--color-primary)] bg-[#e7f1ec] text-[var(--color-primary)]"
+                >
+                  <DashboardIcon name="plus" />
+                </button>
+              )}
             </div>
-            {addingCategory && (
+            {addingCategory && !linkedRefund && (
               <div className="space-y-2 rounded-xl border border-[var(--color-border)] bg-white p-3">
                 <label htmlFor="new-category-name" className="text-xs font-semibold">
                   New category name
@@ -495,7 +670,7 @@ export function AddExpenseSheet({
               maxLength={50}
               value={description}
               onChange={(event) => setDescription(event.target.value)}
-              placeholder="What did you spend on?"
+              placeholder={isRefund ? 'What was refunded?' : 'What did you spend on?'}
               className="min-h-11 w-full rounded-xl border border-[var(--color-border)] bg-white px-3 text-sm focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20"
             />
             <p className="text-right text-[11px] text-[var(--color-secondary-text)]">
@@ -522,6 +697,26 @@ export function AddExpenseSheet({
             </p>
           </section>
 
+          {isRefund && (
+            <section
+              aria-label="Budget impact"
+              className="mt-4 rounded-xl border border-[#a4d9bd] bg-[#e7f1ec] p-3.5"
+            >
+              <p className="text-sm font-bold text-[var(--color-primary)]">Budget Impact</p>
+              <p className="mt-1 text-xs leading-5 text-[var(--color-secondary-text)]">
+                {validAmount ? formatInrPaise(amountPaise) : 'The refund amount'} will be credited
+                back to your{' '}
+                {date
+                  ? new Intl.DateTimeFormat('en-IN', {
+                      timeZone: 'Asia/Kolkata',
+                      month: 'long',
+                    }).format(new Date(`${date}T12:00:00+05:30`))
+                  : 'selected month'}{' '}
+                Available Budget and deducted from net expenses.
+              </p>
+            </section>
+          )}
+
           {error && (
             <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">
               {error}
@@ -532,7 +727,8 @@ export function AddExpenseSheet({
             onClick={save}
             className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[var(--color-primary)] px-5 text-sm font-bold text-white shadow-[0_8px_24px_rgba(23,107,87,0.2)]"
           >
-            Save Expense{validAmount ? ` • ${formatInrPaise(amountPaise)}` : ''}
+            {isRefund ? 'Save Refund' : 'Save Expense'}
+            {validAmount ? ` • ${formatInrPaise(amountPaise)}` : ''}
           </button>
         </div>
       </section>

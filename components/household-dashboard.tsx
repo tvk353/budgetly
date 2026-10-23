@@ -3,14 +3,21 @@
 import { useState } from 'react';
 import Link from 'next/link';
 
-import { AddExpenseSheet, type NewExpenseInput } from '@/components/add-expense-sheet';
+import {
+  AddExpenseSheet,
+  AddRefundSheet,
+  type NewExpenseInput,
+  type NewRefundInput,
+} from '@/components/add-expense-sheet';
 import { DashboardIcon, type DashboardIconName } from '@/components/dashboard-icon';
 import { HouseholdBottomNavigation } from '@/components/household-bottom-navigation';
 import {
   formatInrPaise,
+  calculateBudgetSummary,
   type HouseholdDashboardData,
   type RecentTransaction,
 } from '@/lib/household-dashboard-data';
+import { getIstDateKey } from '@/lib/transactions-data';
 
 const transactionGlyphs = {
   cart: 'cart',
@@ -112,11 +119,38 @@ function TransactionRow({
 export function HouseholdDashboard({ dashboard }: { dashboard: HouseholdDashboardData }) {
   const { budget } = dashboard;
   const [showAddExpense, setShowAddExpense] = useState(false);
+  const [showAddRefund, setShowAddRefund] = useState(false);
   const [recentTransactions, setRecentTransactions] = useState(dashboard.recentTransactions);
-  const todayKey = (() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  })();
+  const [addedRefundsPaise, setAddedRefundsPaise] = useState(0);
+  const [addedRefundCount, setAddedRefundCount] = useState(0);
+  const todayKey = getIstDateKey(new Date());
+  const budgetWithLocalRefunds = calculateBudgetSummary({
+    baseBudgetPaise: budget.applicableBudgetPaise,
+    rolloverPaise: 0,
+    expensesPaise: dashboard.expensesPaise,
+    refundsPaise: dashboard.refundsPaise + addedRefundsPaise,
+    remainingDays: dashboard.remainingDays,
+  });
+  const refundableExpenses = recentTransactions
+    .filter((transaction) => transaction.type === 'expense')
+    .map((expense) => {
+      const refundedPaise = recentTransactions.reduce(
+        (total, transaction) =>
+          transaction.type === 'refund' && transaction.linkedExpenseId === expense.id
+            ? total + transaction.amountPaise
+            : total,
+        0,
+      );
+      return {
+        id: expense.id,
+        description: expense.description,
+        amountPaise: expense.amountPaise,
+        refundedPaise,
+        remainingPaise: expense.amountPaise - refundedPaise,
+        category: expense.category,
+      };
+    })
+    .filter((expense) => expense.remainingPaise > 0);
 
   function handleSaveExpense(expense: NewExpenseInput) {
     const icon: RecentTransaction['icon'] =
@@ -138,14 +172,54 @@ export function HouseholdDashboard({ dashboard }: { dashboard: HouseholdDashboar
         dateLabel: expense.date === todayKey ? 'Today' : expense.date,
         icon,
       };
-      setRecentTransactions((current) => [newTransaction, ...current].slice(0, 5));
+      setRecentTransactions((current) => [newTransaction, ...current]);
     }
     setShowAddExpense(false);
   }
+
+  function handleSaveRefund(refund: NewRefundInput) {
+    const linkedExpense = refundableExpenses.find(
+      (expense) => expense.id === refund.linkedExpenseId,
+    );
+    const dateObject = new Date(`${refund.date}T12:00:00+05:30`);
+    const dateLabel =
+      refund.date === todayKey
+        ? 'Today'
+        : new Intl.DateTimeFormat('en-IN', {
+            timeZone: 'Asia/Kolkata',
+            day: 'numeric',
+            month: 'short',
+          }).format(dateObject);
+    const newTransaction: RecentTransaction & { dateLabel: string } = {
+      id: `refund-${Date.now()}`,
+      description:
+        refund.description ||
+        (linkedExpense
+          ? `${linkedExpense.description} refund`
+          : `${refund.label || refund.category} refund`),
+      amountPaise: refund.amountPaise,
+      type: 'refund',
+      category: refund.category,
+      icon: 'refund',
+      dateOffsetDays: 0,
+      dateLabel,
+      relationship: linkedExpense ? `Linked to ${linkedExpense.description}` : 'Unlinked refund',
+      linkedExpenseId: refund.linkedExpenseId,
+    };
+    setRecentTransactions((current) => [newTransaction, ...current]);
+    if (refund.date.startsWith(todayKey.slice(0, 7))) {
+      setAddedRefundsPaise((current) => current + refund.amountPaise);
+      setAddedRefundCount((current) => current + 1);
+    }
+    setShowAddRefund(false);
+  }
+
   const circumference = 314.16;
-  const strokeOffset = circumference * (1 - budget.progressRatio);
+  const strokeOffset = circumference * (1 - budgetWithLocalRefunds.progressRatio);
   const spendingLabel =
-    budget.spendingPercent === null ? 'No budget' : `${Math.round(budget.spendingPercent)}% used`;
+    budgetWithLocalRefunds.spendingPercent === null
+      ? 'No budget'
+      : `${Math.round(budgetWithLocalRefunds.spendingPercent)}% used`;
 
   return (
     <main
@@ -237,7 +311,7 @@ export function HouseholdDashboard({ dashboard }: { dashboard: HouseholdDashboar
           <div className="flex flex-col items-center py-2">
             <div
               role="img"
-              aria-label={`${spendingLabel}; ${formatInrPaise(budget.availableBudgetPaise)} available of ${formatInrPaise(budget.applicableBudgetPaise)}`}
+              aria-label={`${spendingLabel}; ${formatInrPaise(budgetWithLocalRefunds.availableBudgetPaise)} available of ${formatInrPaise(budgetWithLocalRefunds.applicableBudgetPaise)}`}
               className="relative flex h-[208px] w-[208px] items-center justify-center"
             >
               <svg aria-hidden="true" className="h-full w-full -rotate-90" viewBox="0 0 120 120">
@@ -259,20 +333,20 @@ export function HouseholdDashboard({ dashboard }: { dashboard: HouseholdDashboar
                   Available Budget
                 </span>
                 <span className="mt-0.5 whitespace-nowrap text-[27px] font-bold leading-9 tracking-tight text-[var(--color-primary)]">
-                  {formatInrPaise(budget.availableBudgetPaise)}
+                  {formatInrPaise(budgetWithLocalRefunds.availableBudgetPaise)}
                 </span>
                 <span className="mt-0.5 text-[11px] text-[var(--color-secondary-text)]">
-                  of {formatInrPaise(budget.applicableBudgetPaise)} total
+                  of {formatInrPaise(budgetWithLocalRefunds.applicableBudgetPaise)} total
                 </span>
                 <span
                   className={`mt-2 rounded-full px-2.5 py-1 text-[10px] font-bold ${
-                    budget.overspentPaise > 0
+                    budgetWithLocalRefunds.overspentPaise > 0
                       ? 'bg-[#ffdad6] text-[#93000a]'
                       : 'bg-[var(--color-light-teal)] text-[var(--color-primary)]'
                   }`}
                 >
-                  {budget.overspentPaise > 0
-                    ? `Overspent ${formatInrPaise(budget.overspentPaise)}`
+                  {budgetWithLocalRefunds.overspentPaise > 0
+                    ? `Overspent ${formatInrPaise(budgetWithLocalRefunds.overspentPaise)}`
                     : spendingLabel}
                 </span>
               </div>
@@ -286,7 +360,7 @@ export function HouseholdDashboard({ dashboard }: { dashboard: HouseholdDashboar
                 Monthly Budget
               </p>
               <p className="mt-0.5 text-[13px] font-bold">
-                {formatInrPaise(budget.applicableBudgetPaise)}
+                {formatInrPaise(budgetWithLocalRefunds.applicableBudgetPaise)}
               </p>
             </div>
             <div className="px-1">
@@ -294,7 +368,7 @@ export function HouseholdDashboard({ dashboard }: { dashboard: HouseholdDashboar
                 Net Spent
               </p>
               <p className="mt-0.5 text-[13px] font-bold">
-                {formatInrPaise(budget.netEligibleExpensesPaise)}
+                {formatInrPaise(budgetWithLocalRefunds.netEligibleExpensesPaise)}
               </p>
             </div>
             <div className="px-1">
@@ -302,17 +376,17 @@ export function HouseholdDashboard({ dashboard }: { dashboard: HouseholdDashboar
                 Daily Safe Spend
               </p>
               <p className="mt-0.5 text-[13px] font-bold text-[var(--color-primary)]">
-                {budget.dailySafeSpendPaise === null
+                {budgetWithLocalRefunds.dailySafeSpendPaise === null
                   ? '—'
-                  : formatInrPaise(budget.dailySafeSpendPaise)}
-                {budget.dailySafeSpendPaise !== null ? (
+                  : formatInrPaise(budgetWithLocalRefunds.dailySafeSpendPaise)}
+                {budgetWithLocalRefunds.dailySafeSpendPaise !== null ? (
                   <span className="text-[10px] font-normal text-[var(--color-secondary-text)]">
                     /d
                   </span>
                 ) : null}
               </p>
               <p className="text-[10px] text-[var(--color-secondary-text)]">
-                {budget.overspentPaise > 0
+                {budgetWithLocalRefunds.overspentPaise > 0
                   ? 'Overspent'
                   : dashboard.remainingDays > 0
                     ? `${dashboard.remainingDays} days left`
@@ -358,10 +432,10 @@ export function HouseholdDashboard({ dashboard }: { dashboard: HouseholdDashboar
             </div>
             <div>
               <p className="whitespace-nowrap text-[19px] font-bold tracking-tight text-[var(--color-primary)]">
-                +{formatInrPaise(dashboard.refundsPaise)}
+                +{formatInrPaise(dashboard.refundsPaise + addedRefundsPaise)}
               </p>
               <p className="mt-0.5 text-[10px] text-[var(--color-primary)]">
-                {dashboard.refundCount} credited items
+                {dashboard.refundCount + addedRefundCount} credited items
               </p>
             </div>
           </div>
@@ -377,7 +451,16 @@ export function HouseholdDashboard({ dashboard }: { dashboard: HouseholdDashboar
           >
             <DashboardIcon name="plus" className="h-6 w-6" />
           </button>
-          <DisabledAction label="Refund" glyph="plus" />
+          <button
+            type="button"
+            onClick={() => setShowAddRefund(true)}
+            aria-label="Add refund"
+            title="Add refund"
+            className="flex h-12 min-w-0 items-center justify-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-light-teal)] px-2 text-sm font-semibold text-[var(--color-primary)]"
+          >
+            <DashboardIcon name="refund" className="h-[18px] w-[18px]" />
+            <span>Refund</span>
+          </button>
           <DisabledAction label="Activity" glyph="activity" />
         </section>
 
@@ -397,7 +480,7 @@ export function HouseholdDashboard({ dashboard }: { dashboard: HouseholdDashboar
             </button>
           </div>
           <ul className="divide-y divide-[var(--color-border)] overflow-hidden rounded-2xl border border-[var(--color-border)] bg-white shadow-[0_2px_8px_rgba(32,42,39,0.03)]">
-            {recentTransactions.map((transaction) => (
+            {recentTransactions.slice(0, 5).map((transaction) => (
               <TransactionRow key={transaction.id} transaction={transaction} />
             ))}
           </ul>
@@ -410,6 +493,14 @@ export function HouseholdDashboard({ dashboard }: { dashboard: HouseholdDashboar
           todayKey={todayKey}
           onClose={() => setShowAddExpense(false)}
           onSave={handleSaveExpense}
+        />
+      ) : null}
+      {showAddRefund ? (
+        <AddRefundSheet
+          todayKey={todayKey}
+          refundableExpenses={refundableExpenses}
+          onClose={() => setShowAddRefund(false)}
+          onSave={handleSaveRefund}
         />
       ) : null}
     </main>
