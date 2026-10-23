@@ -16,14 +16,25 @@ export interface MockTransaction {
   date: string;
   time?: string;
   category: string;
+  label?: string;
   payer?: string;
   detail?: string;
+  linkedExpenseId?: string;
   icon: 'cart' | 'gas' | 'dining' | 'refund' | 'bolt' | 'medicine' | 'movie';
 }
 
 export interface DatedMockTransaction extends MockTransaction {
   dateLabel: string;
   dayGroup: string;
+}
+
+export interface RefundableExpense {
+  id: string;
+  description: string;
+  amountPaise: number;
+  refundedPaise: number;
+  remainingPaise: number;
+  category: string;
 }
 
 export interface TransactionFilters {
@@ -68,6 +79,16 @@ export const mockTransactionRecords = [
     icon: 'dining',
   },
   {
+    id: 'amazon-shoes',
+    description: 'Amazon.in — Puma Running Shoes',
+    amountPaise: 349_900,
+    type: 'expense',
+    dayOffset: 5,
+    category: 'Shopping',
+    payer: 'Priya',
+    icon: 'cart',
+  },
+  {
     id: 'amazon-refund',
     description: 'Amazon Return — Shoes',
     amountPaise: 145_000,
@@ -76,6 +97,7 @@ export const mockTransactionRecords = [
     time: '03:15 PM',
     category: 'Shopping',
     detail: 'Linked Refund',
+    linkedExpenseId: 'amazon-shoes',
     icon: 'refund',
   },
   {
@@ -186,6 +208,40 @@ export function getTransactionScreenData(now: Date) {
       .sort((first, second) => second.date.localeCompare(first.date)),
     monthPrefix,
   };
+}
+
+export function parseInrAmountToPaise(amount: string) {
+  const trimmed = amount.trim();
+  if (!/^\d+(?:\.\d{1,2})?$/.test(trimmed)) return null;
+
+  const [whole, fraction = ''] = trimmed.split('.');
+  const paise = Number(whole) * 100 + Number(fraction.padEnd(2, '0'));
+  return Number.isSafeInteger(paise) && paise > 0 ? paise : null;
+}
+
+export function getRefundableExpenses(records: DatedMockTransaction[]): RefundableExpense[] {
+  return records
+    .filter((record) => record.type === 'expense')
+    .map((expense) => {
+      const refundedPaise = records.reduce(
+        (total, record) =>
+          record.type === 'refund' && record.linkedExpenseId === expense.id
+            ? total + record.amountPaise
+            : total,
+        0,
+      );
+      const remainingPaise = expense.amountPaise - refundedPaise;
+
+      return {
+        id: expense.id,
+        description: expense.description,
+        amountPaise: expense.amountPaise,
+        refundedPaise,
+        remainingPaise,
+        category: expense.category,
+      };
+    })
+    .filter((expense) => expense.remainingPaise > 0);
 }
 
 export function filterTransactions(

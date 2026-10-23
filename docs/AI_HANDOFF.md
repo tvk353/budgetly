@@ -11,13 +11,18 @@
     circular `+` action at the bottom-right to open Add Expense).
 4.  **Transactions Ledger**: `/transactions` (Search, date range filter,
     category filter, expense/refund tab filters, compact INR amounts,
-    and Add Expense entry point).
-5.  **Add Expense**: Opened from the Home bottom-right `+` button and
-    Transactions screen actions. Includes amount, Category dropdown,
-    optional Label dropdown, date, optional description, and optional
-    notes. Category and Label dropdowns support inline `+` actions for
-    creating custom entries and selecting a predefined icon. The Home
-    action is a circular `+` only; do not add "Add Transaction" text.
+    and Add Expense / Add Refund entry points).
+5.  **Add Expense and Add Refund**: Add Expense is opened from the Home
+    bottom-right `+` button and Transactions screen actions. It includes
+    amount, Category dropdown, optional Label dropdown, date, optional
+    description, and optional notes. Category and Label dropdowns
+    support inline `+` actions for creating custom entries and selecting
+    a predefined icon. Add Refund supports linked and unlinked refunds,
+    inherits the linked expense category, and enforces its remaining
+    refundable amount. Both flows are mock-only and in-memory.
+    The Stitch-only "Credited to / Received by" selector is omitted
+    because the approved PRD does not define that field. The Home action
+    remains a circular `+` only; do not add "Add Transaction" text.
 6.  **Monthly Budget**: `/budget` (Stitch-aligned formula ledger,
     available surplus/deficit, progress bar, 6 category envelopes with
     refund adjustments, month navigation between past, current, and
@@ -171,8 +176,8 @@
 
 ## Next Screen and Unresolved Decisions
 
-- **Next features**: Add Refund modal (`screen_7_add_refund`) or
-  individual Tracker Detail view.
+- **Next feature**: Individual Tracker Detail view. Add Refund is
+  implemented as a mock-only modal.
 - **Backend integration**: Persist transactions, category
   administration, reusable workspace-scoped labels, and selected icons
   in Supabase; implement database constraints and RLS policies based
