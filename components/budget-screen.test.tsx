@@ -10,7 +10,7 @@ describe('BudgetScreen', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'Monthly Budget' })).toBeInTheDocument();
     expect(
-      screen.getByRole('link', { name: /switch workspace, currently household with 2 members/i }),
+      screen.getByRole('link', { name: /switch workspace, currently household/i }),
     ).toHaveAttribute('href', '/workspaces');
     expect(screen.getByRole('link', { name: 'Go back to Household dashboard' })).toHaveAttribute(
       'href',

@@ -1,11 +1,7 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './helpers/auth-fixture';
 
 test('adds an expense from the Home dashboard', async ({ page }) => {
-  await page.goto('/');
-  await page.getByRole('button', { name: /continue/i }).click();
-  await expect(page).toHaveURL(/\/verify\?/);
-  await page.getByRole('button', { name: 'Verify email' }).click();
-  await expect(page).toHaveURL(/\/workspaces$/);
+  await page.goto('/workspaces');
   await page.getByRole('button', { name: 'Choose Household workspace' }).click();
   await expect(page).toHaveURL(/\/workspace\/household$/);
 

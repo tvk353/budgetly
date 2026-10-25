@@ -2,11 +2,13 @@
 
 Use this before approving or executing the migration package.
 
+The checklist records verification still required; a listed design decision does not prove that the draft SQL enforces it. No migration is approved for execution by this checklist.
+
 ## Tables and core constraints
 
 - [ ] Profiles use the Supabase Auth user UUID.
 - [ ] Personal workspace cardinality and household owner invariants are correct.
-- [ ] Household membership has no two-member cap.
+- [ ] Household membership allows more than two active members, has exactly one active owner, and has no two-member cap, as specified by the approved ERD model.
 - [ ] Invitation token is stored only as a hash.
 - [ ] Custom category names are unique case-insensitively within category scope after trimming; unrelated users cannot read them.
 - [ ] Built-in category names cannot be used by custom categories.
@@ -56,3 +58,15 @@ Use this before approving or executing the migration package.
 - [ ] Deleting/archiving a label detaches it without deleting transactions.
 - [ ] Label operations are covered by workspace-member RLS and server validation.
 - [ ] Label changes do not affect budget eligibility, category totals, or refund calculations.
+
+## Draft fixes requiring verification
+
+- [ ] `003_integrity_functions.sql` now checks custom category scope linkage on ordinary/tracker transaction insert and workspace/category updates; test linked, unlinked, built-in, and deleted-scope cases under the final RLS policy.
+- [ ] `003_integrity_functions.sql` now rejects budget inserts outside the current `Asia/Kolkata` month. Verify current-month insert, past-row update, future insert, and confirm API past-month writes use `UPDATE`, not an insert/upsert.
+- [ ] `003_integrity_functions.sql` now checks job/detail types and cardinality at deferred transaction end, including parent job updates. Test valid atomic creation, missing detail, wrong child type, parent type/workspace changes, replacement, and cascades.
+- [ ] Verify profile deletion/account purge cannot leave a Personal workspace without its required active owner; test deferred membership triggers with account lifecycle cleanup.
+- [ ] Verify all `updated_at` columns have update triggers; `labels` was added to the trigger list and `deletion_tombstones` was already covered.
+- [ ] `guard_trash_retention()` now requires exactly 30 days for ordinary Trash metadata. Test 29/30/31-day values, restore, and the separate account/workspace recovery window.
+- [ ] Verify authenticated direct `DELETE` is denied and protected metadata updates are denied by Artifact 3 grants; trusted lifecycle operations must preserve parent/refund and savings/tracker history atomically.
+- [ ] Verify future table/function default ACL revokes for every migration/object-creating role; the draft currently applies defaults only for the executing role.
+- [ ] Require every new public-table migration to explicitly enable RLS and define policies; PostgreSQL does not automatically enable RLS on future tables.

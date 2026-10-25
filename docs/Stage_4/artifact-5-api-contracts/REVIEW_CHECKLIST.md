@@ -43,6 +43,16 @@ Do not treat this artifact as approved until each item is reviewed.
 - [ ] No migrations were applied and no database was changed.
 - [ ] OpenAPI/schema validation and implementation tests are still pending.
 
+## OpenAPI coverage findings
+
+- [x] Add the catalogue's 70 method/path operations to OpenAPI; static inventory now finds 70 operations across 52 path templates. Count parity is not proof of exact semantic parity.
+- [ ] Reconcile every operation's method/path and expected errors against `API_CONTRACTS.md`; validate OpenAPI references and semantics with an approved validator.
+- [ ] Finalize request/response shapes currently marked `x-contract-gap`, including account deletion/recovery/session revoke, workspace deletion confirmation, permanent-delete confirmation, workspace metadata, settings preferences, Trash record types, and report date-range query encoding.
+- [ ] Resolve API/schema mismatches without inventing a rule: category `compatible_types` versus SQL `category_type`; tracker create `description` versus the missing `public.trackers.description` column; and API base-budget positivity versus SQL's non-negative check.
+- [ ] The label addendum specifies soft delete but the human route catalogue has no label-delete operation; decide/approve the route contract before adding it.
+- [ ] Prettier parsed/formatted the YAML; OpenAPI semantic and referenced-schema validation remain unrun. Record actual validator results before implementation readiness.
+- [ ] Validate every request/response schema, authentication/error response, pagination style, and API/database field mapping before implementation readiness.
+
 ## Reconciliation checks
 
 - [ ] Category endpoints document per-user scopes, household-shared access, collision display, and join/leave behavior.

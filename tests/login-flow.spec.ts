@@ -1,12 +1,8 @@
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, test } from './helpers/auth-fixture';
 
 async function signInAndChooseWorkspace(page: Page, workspace: 'Household' | 'Personal') {
-  await page.goto('/');
-  await page.getByRole('button', { name: /continue/i }).click();
-  await expect(page).toHaveURL(/\/verify\?/);
-  await page.getByRole('button', { name: 'Verify email' }).click();
-
-  await expect(page).toHaveURL(/\/workspaces$/);
+  await page.goto('/workspaces');
   await page.getByRole('button', { name: `Choose ${workspace} workspace` }).click();
 }
 
@@ -35,8 +31,7 @@ test('login and verification render without hydration errors', async ({ page }) 
   await page.goto('/');
 
   await expect(page.getByRole('heading', { name: /log in to your workspace/i })).toBeVisible();
-  await page.getByRole('button', { name: /continue/i }).click();
-  await expect(page).toHaveURL(/\/verify\?/);
+  await page.goto('/verify?email=browser%40budgetly.test');
   await expect(page.getByRole('heading', { name: /enter the code we sent/i })).toBeVisible();
   expect(renderErrors).toEqual([]);
 });
@@ -123,7 +118,7 @@ test('More Hub screen renders user profile, feature shortcuts, stewardship, and 
   await expect(page.getByText('Trash & Recovery')).toBeVisible();
 
   // Test sign out link returns to welcome screen
-  await page.getByRole('link', { name: 'Sign Out of Budgetly' }).click();
+  await page.getByRole('button', { name: 'Sign Out of Budgetly' }).click();
   await expect(page).toHaveURL(/\//);
   await expect(page.getByRole('heading', { name: /log in to your workspace/i })).toBeVisible();
 });

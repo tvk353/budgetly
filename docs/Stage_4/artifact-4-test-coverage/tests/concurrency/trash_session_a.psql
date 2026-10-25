@@ -1,0 +1,30 @@
+-- Session A: test parent/child Trash locking only; this is not a substitute for the missing trusted lifecycle operation.
+-- Use the disposable database owner connection because authenticated clients must not update deleted_at.
+\set ON_ERROR_STOP on
+\set VERBOSITY verbose
+
+DO $guard$
+BEGIN
+  IF current_setting('budgetly.disposable_test', true) IS DISTINCT FROM 'on' THEN
+    RAISE EXCEPTION 'Disposable-test connection marker is required';
+  END IF;
+END;
+$guard$;
+
+BEGIN;
+SELECT id FROM public.transactions
+ WHERE id = '60000000-0000-4000-8000-000000000013'::uuid
+ FOR UPDATE;
+UPDATE public.transactions
+   SET deleted_at = now(),
+       deleted_by_user_id = '10000000-0000-4000-8000-000000000001'::uuid,
+       purge_after = now() + interval '30 days'
+ WHERE id = '60000000-0000-4000-8000-000000000013'::uuid;
+UPDATE public.transactions
+   SET deleted_at = now(),
+       deleted_by_user_id = '10000000-0000-4000-8000-000000000001'::uuid,
+       purge_after = now() + interval '30 days'
+ WHERE id = '60000000-0000-4000-8000-000000000014'::uuid;
+\echo Session A moved the expense and its linked refund to Trash in one open transaction.
+\prompt 'Start trash_session_b.psql, confirm it waits on a lock, then press Enter to commit A: ' barrier_ack
+COMMIT;

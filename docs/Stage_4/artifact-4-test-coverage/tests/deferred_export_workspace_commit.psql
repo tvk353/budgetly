@@ -1,0 +1,12 @@
+-- DRAFT TEST ONLY. COMMIT must fail when a parent workspace diverges from its export detail.
+\set ON_ERROR_STOP on
+\set VERBOSITY verbose
+DO $guard$ BEGIN
+  IF current_setting('budgetly.disposable_test', true) IS DISTINCT FROM 'on' THEN
+    RAISE EXCEPTION 'Disposable-test connection marker is required';
+  END IF;
+END $guard$;
+BEGIN;
+UPDATE public.background_jobs SET workspace_id = :'household_e'::uuid
+ WHERE id = :'export_job_id'::uuid;
+COMMIT;

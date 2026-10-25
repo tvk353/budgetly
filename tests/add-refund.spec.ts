@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './helpers/auth-fixture';
 
 test('adds a linked refund up to the expense remaining amount', async ({ page }) => {
   await page.goto('/transactions');

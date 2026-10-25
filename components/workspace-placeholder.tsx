@@ -5,7 +5,7 @@ export type WorkspaceKind = 'household' | 'personal';
 const workspaceDetails: Record<WorkspaceKind, { name: string; description: string }> = {
   household: {
     name: 'Household',
-    description: 'Shared household finances for you and your wife.',
+    description: 'Shared finances for your household members.',
   },
   personal: {
     name: 'Personal',
@@ -13,7 +13,13 @@ const workspaceDetails: Record<WorkspaceKind, { name: string; description: strin
   },
 };
 
-export function WorkspacePlaceholder({ workspace }: { workspace: WorkspaceKind }) {
+export function WorkspacePlaceholder({
+  workspace,
+  name,
+}: {
+  workspace: WorkspaceKind;
+  name?: string;
+}) {
   const details = workspaceDetails[workspace];
 
   return (
@@ -22,7 +28,7 @@ export function WorkspacePlaceholder({ workspace }: { workspace: WorkspaceKind }
         Selected workspace
       </p>
       <h2 className="mt-3 text-3xl font-semibold leading-tight text-[var(--color-main-text)]">
-        {details.name}
+        {name ?? details.name}
       </h2>
       <p className="mt-3 text-sm leading-6 text-[var(--color-secondary-text)]">
         {details.description}

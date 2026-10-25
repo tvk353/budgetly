@@ -19,9 +19,13 @@ type FilterTab = 'active' | 'ended' | 'hidden';
 
 interface TrackersScreenProps {
   initialTrackers?: Tracker[];
+  workspaceName?: string;
 }
 
-export function TrackersScreen({ initialTrackers = mockTrackers }: TrackersScreenProps) {
+export function TrackersScreen({
+  initialTrackers = mockTrackers,
+  workspaceName = 'Household',
+}: TrackersScreenProps) {
   const [trackers, setTrackers] = useState<Tracker[]>(initialTrackers);
   const [activeTab, setActiveTab] = useState<FilterTab>('active');
   const [showHelp, setShowHelp] = useState(false);
@@ -57,12 +61,12 @@ export function TrackersScreen({ initialTrackers = mockTrackers }: TrackersScree
             {/* Household Workspace Pill */}
             <Link
               href="/workspaces"
-              aria-label="Switch workspace, currently Household"
+              aria-label={`Switch workspace, currently ${workspaceName}`}
               className="mb-0.5 inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-light-teal)] px-2.5 py-0.5 transition-transform active:scale-[0.985]"
             >
               <span className="select-none text-[11px] leading-tight">🏠</span>
               <span className="text-[11px] font-semibold text-[var(--color-primary)]">
-                Household
+                {workspaceName}
               </span>
             </Link>
             <h1 className="text-[17px] font-bold tracking-tight text-[var(--color-primary)]">
@@ -103,6 +107,9 @@ export function TrackersScreen({ initialTrackers = mockTrackers }: TrackersScree
 
       {/* Main Content */}
       <main className="flex-1 space-y-5 px-5 pt-4">
+        <p className="text-xs text-[var(--color-secondary-text)]">
+          Sample financial data only. Changes are not saved.
+        </p>
         {/* Info Banner */}
         <section
           aria-label="Trackers info"

@@ -18,4 +18,4 @@ Design-only. SQL is still a draft and has not been executed. No database was con
 
 ## Reusable labels addendum
 
-This revision adds workspace-scoped reusable transaction labels across the ERD, draft SQL, RLS, API schemas, and planned test coverage. See `LABELS_PRD_ADDENDUM.md`. No tests or migrations were run/applied. The source PRD was not present in the supplied archive, so the addendum is provided for merging into the canonical PRD.
+This revision adds workspace-scoped reusable transaction labels across the ERD, draft SQL, RLS, API schemas, and planned test coverage. See `LABELS_PRD_ADDENDUM.md`. The canonical PRD is present at `docs/PRD.md` and already contains the label requirements; the earlier claim that it was absent was incorrect for this repository. No tests or migrations were run or applied.

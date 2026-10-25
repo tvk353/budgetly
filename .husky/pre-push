@@ -1,2 +1,2 @@
 pnpm run build
-pnpm run e2e
+BUDGETLY_LOCAL_AUTH_TESTS=1 pnpm run e2e --workers=1

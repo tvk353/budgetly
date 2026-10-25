@@ -18,7 +18,7 @@ declare
 begin
   foreach t in array array[
     'profiles','workspaces','workspace_members','account_deletion_requests',
-    'workspace_deletion_requests','categories','workspace_category_visibility','idempotency_records',
+    'workspace_deletion_requests','categories','workspace_category_visibility','idempotency_records','labels',
     'transactions','monthly_budgets','savings_funds','savings_transactions',
     'trackers','tracker_transactions','background_jobs','export_jobs','deletion_tombstones'
   ] loop
@@ -54,6 +54,70 @@ for each row execute function public.guard_business_date();
 create trigger trg_tracker_transactions_business_date
 before insert or update of transaction_date on public.tracker_transactions
 for each row execute function public.guard_business_date();
+
+-- New budgets are only created for the current Asia/Kolkata calendar month.
+-- Existing past budgets remain editable through UPDATE, not an INSERT upsert.
+create or replace function public.guard_monthly_budget_insert()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+declare
+  current_month date := date_trunc('month', now() at time zone 'Asia/Kolkata')::date;
+begin
+  if new.month_start <> current_month then
+    raise exception using errcode = '23514', message = 'New budgets can only be created for the current month';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger trg_monthly_budgets_current_month
+before insert on public.monthly_budgets
+for each row execute function public.guard_monthly_budget_insert();
+
+-- Ordinary Trash retention is exactly 30 days. Account/workspace recovery uses
+-- its separate lifecycle request and tombstone rules.
+create or replace function public.guard_trash_retention()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if new.deleted_at is null then
+    if new.purge_after is not null then
+      raise exception using errcode = '23514', message = 'Active records cannot have purge_after';
+    end if;
+  elsif new.purge_after is distinct from new.deleted_at + interval '30 days' then
+    raise exception using errcode = '23514', message = 'Trash retention must be exactly 30 days';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger trg_labels_trash_retention
+before insert or update of deleted_at, purge_after on public.labels
+for each row execute function public.guard_trash_retention();
+
+create trigger trg_transactions_trash_retention
+before insert or update of deleted_at, purge_after on public.transactions
+for each row execute function public.guard_trash_retention();
+
+create trigger trg_savings_funds_trash_retention
+before insert or update of deleted_at, purge_after on public.savings_funds
+for each row execute function public.guard_trash_retention();
+
+create trigger trg_savings_transactions_trash_retention
+before insert or update of deleted_at, purge_after on public.savings_transactions
+for each row execute function public.guard_trash_retention();
+
+create trigger trg_trackers_trash_retention
+before insert or update of deleted_at, purge_after on public.trackers
+for each row execute function public.guard_trash_retention();
+
+create trigger trg_tracker_transactions_trash_retention
+before insert or update of deleted_at, purge_after on public.tracker_transactions
+for each row execute function public.guard_trash_retention();
 
 -- Custom categories cannot collide with built-in names, even across category types.
 create or replace function public.guard_category_name()
@@ -93,7 +157,7 @@ end;
 $$;
 
 create trigger trg_categories_guard_name
-before insert or update of name, is_builtin on public.categories
+before insert or update of name, is_builtin, category_scope_id, created_by_user_id on public.categories
 for each row execute function public.guard_category_name();
 
 -- Built-in visibility overrides are allowed only for household workspaces and built-in categories.
@@ -132,6 +196,8 @@ as $$
 declare
   cat_type text;
   cat_archived timestamptz;
+  cat_scope_id uuid;
+  cat_is_builtin boolean;
 begin
   if new.category_id is null then
     if not new.needs_category_correction then
@@ -141,13 +207,21 @@ begin
     if new.needs_category_correction then
       raise exception using errcode = '23514', message = 'A categorized transaction cannot require category correction';
     end if;
-    select c.category_type, c.archived_at into cat_type, cat_archived
+    select c.category_type, c.archived_at, c.category_scope_id, c.is_builtin
+      into cat_type, cat_archived, cat_scope_id, cat_is_builtin
       from public.categories c where c.id = new.category_id;
     if not found then
       raise exception using errcode = '23503', message = 'Category does not exist';
     end if;
     if cat_type <> 'ordinary' then
       raise exception using errcode = '23514', message = 'Transaction requires an ordinary category';
+    end if;
+    if not cat_is_builtin and not exists (
+      select 1 from public.workspace_category_scopes wcs
+      where wcs.workspace_id = new.workspace_id
+        and wcs.category_scope_id = cat_scope_id
+    ) then
+      raise exception using errcode = '23514', message = 'Category scope is not linked to the transaction workspace';
     end if;
     if cat_archived is not null and (tg_op = 'INSERT' or new.category_id is distinct from old.category_id) then
       raise exception using errcode = '23514', message = 'Archived category cannot be newly assigned';
@@ -158,7 +232,7 @@ end;
 $$;
 
 create trigger trg_transactions_category_guard
-before insert or update of category_id, needs_category_correction on public.transactions
+before insert or update of workspace_id, category_id, needs_category_correction on public.transactions
 for each row execute function public.guard_transaction_category();
 
 create or replace function public.guard_tracker_transaction_category()
@@ -169,6 +243,8 @@ as $$
 declare
   cat_type text;
   cat_archived timestamptz;
+  cat_scope_id uuid;
+  cat_is_builtin boolean;
 begin
   if new.category_id is null then
     if not new.needs_category_correction then
@@ -178,13 +254,21 @@ begin
     if new.needs_category_correction then
       raise exception using errcode = '23514', message = 'A categorized tracker transaction cannot require category correction';
     end if;
-    select c.category_type, c.archived_at into cat_type, cat_archived
+    select c.category_type, c.archived_at, c.category_scope_id, c.is_builtin
+      into cat_type, cat_archived, cat_scope_id, cat_is_builtin
       from public.categories c where c.id = new.category_id;
     if not found then
       raise exception using errcode = '23503', message = 'Category does not exist';
     end if;
     if cat_type <> 'tracker' then
       raise exception using errcode = '23514', message = 'Tracker transaction requires a tracker category';
+    end if;
+    if not cat_is_builtin and not exists (
+      select 1 from public.workspace_category_scopes wcs
+      where wcs.workspace_id = new.workspace_id
+        and wcs.category_scope_id = cat_scope_id
+    ) then
+      raise exception using errcode = '23514', message = 'Category scope is not linked to the tracker workspace';
     end if;
     if cat_archived is not null and (tg_op = 'INSERT' or new.category_id is distinct from old.category_id) then
       raise exception using errcode = '23514', message = 'Archived category cannot be newly assigned';
@@ -195,7 +279,7 @@ end;
 $$;
 
 create trigger trg_tracker_transactions_category_guard
-before insert or update of category_id, needs_category_correction on public.tracker_transactions
+before insert or update of workspace_id, category_id, needs_category_correction on public.tracker_transactions
 for each row execute function public.guard_tracker_transaction_category();
 
 -- Membership invariants are deferred so workspace creation and initial membership can happen in one transaction.
@@ -458,6 +542,99 @@ $$;
 create trigger trg_backup_run_type_guard
 before insert or update of background_job_id on public.backup_runs
 for each row execute function public.guard_backup_run_type();
+
+-- Enforce one matching detail row for export/backup jobs at transaction end.
+-- Cleanup jobs have no detail row. Deferred checks allow queue + detail creation
+-- and replacement to commit atomically.
+create or replace function public.assert_background_job_details(p_job_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  expected_type text;
+  export_count integer;
+  backup_count integer;
+begin
+  select j.job_type into expected_type
+    from public.background_jobs j
+   where j.id = p_job_id;
+  if not found then
+    return;
+  end if;
+
+  select count(*)::integer into export_count
+    from public.export_jobs e where e.background_job_id = p_job_id;
+  select count(*)::integer into backup_count
+    from public.backup_runs b where b.background_job_id = p_job_id;
+
+  if expected_type in ('export', 'annual_export') then
+    if export_count <> 1 or backup_count <> 0 then
+      raise exception using errcode = '23514', message = 'Export job requires exactly one export detail';
+    end if;
+    if exists (
+      select 1
+        from public.background_jobs j
+        join public.export_jobs e on e.background_job_id = j.id
+       where j.id = p_job_id
+         and j.workspace_id is not null
+         and j.workspace_id <> e.workspace_id
+    ) then
+      raise exception using errcode = '23514', message = 'Export detail workspace must match its background job';
+    end if;
+  elsif expected_type in ('backup', 'annual_backup') then
+    if backup_count <> 1 or export_count <> 0 then
+      raise exception using errcode = '23514', message = 'Backup job requires exactly one backup detail';
+    end if;
+  elsif export_count <> 0 or backup_count <> 0 then
+    raise exception using errcode = '23514', message = 'Cleanup jobs cannot have export or backup details';
+  end if;
+end;
+$$;
+
+create or replace function public.check_background_job_details_trigger()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if tg_table_name = 'background_jobs' then
+    if tg_op = 'DELETE' then
+      perform public.assert_background_job_details(old.id);
+    else
+      perform public.assert_background_job_details(new.id);
+    end if;
+  elsif tg_op = 'DELETE' then
+    perform public.assert_background_job_details(old.background_job_id);
+  else
+    if tg_op = 'UPDATE' and old.background_job_id is distinct from new.background_job_id then
+      perform public.assert_background_job_details(old.background_job_id);
+    end if;
+    perform public.assert_background_job_details(new.background_job_id);
+  end if;
+  return null;
+end;
+$$;
+
+revoke all on function public.assert_background_job_details(uuid) from public, anon, authenticated;
+revoke all on function public.check_background_job_details_trigger() from public, anon, authenticated;
+
+create constraint trigger trg_background_jobs_detail_consistency
+after insert or update or delete on public.background_jobs
+deferrable initially deferred
+for each row execute function public.check_background_job_details_trigger();
+
+create constraint trigger trg_export_jobs_detail_consistency
+after insert or update or delete on public.export_jobs
+deferrable initially deferred
+for each row execute function public.check_background_job_details_trigger();
+
+create constraint trigger trg_backup_runs_detail_consistency
+after insert or update or delete on public.backup_runs
+deferrable initially deferred
+for each row execute function public.check_background_job_details_trigger();
 
 -- When a category is permanently deleted, surviving trashed rows can be restored
 -- without that category and must be flagged for correction. Active references are blocked.

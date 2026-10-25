@@ -1,5 +1,24 @@
 # AI Handoff
 
+## Current Backend Status (2026-10-25)
+
+- Email OTP login, verification, logout, protected pages, and workspace
+  reads now use real Supabase Auth and database-enforced authorization.
+  Financial screens and transaction/category/label changes remain sample-only.
+- First verified login atomically provisions an active profile, category scope,
+  and Personal workspace. Retries and concurrent first logins do not duplicate
+  provisioning. Unverified identities and deleted profiles cannot provision.
+- Household creation and invitation joining are not implemented. Existing active
+  Household memberships are loaded; Household is the default when available,
+  otherwise Personal is used. Do not create Household membership during login.
+- Workspace selection uses real names and IDs and persists the exact selection
+  in an HttpOnly cookie across routes and reloads. Each protected page rechecks
+  membership; removed, deleted, foreign, or malformed selections cannot grant
+  access. Login/logout clear the previous selection.
+- Logout revokes the current refresh token and clears session cookies. Already
+  issued access JWTs can remain valid until expiry; logout-all, immediate
+  stolen-token revocation, and account lifecycle flows remain unimplemented.
+
 ## Completed Screens and Routes
 
 1.  **Login & OTP Verification**: `/` (Welcome & Email entry), `/verify`
@@ -35,7 +54,7 @@
 8.  **More Hub**: `/more` (Stitch-aligned user profile card with avatar
     and status, Features & Insights bento shortcuts, Household
     Stewardship with valid link to `/workspaces`, Data & Ledger Vault
-    shortcuts, Preferences & Security with Sign Out link to `/`, app
+    shortcuts, Preferences & Security with real Sign Out action, app
     version stamp, and active More bottom navigation).
 9.  **Trackers Dashboard**: `/trackers` (Stitch-aligned info banner,
     Create Tracker CTA, segmented Active/Ended/Hidden filter tabs,
@@ -143,20 +162,138 @@
     budget calculations.
   - Expense dates cannot be in the future.
 
-## Testing and Validation
+## Auth Configuration and Hosted Deployment
 
-- Existing reported baseline: Vitest had 66 tests passing across 9
-  suites; TypeScript `tsc --noEmit` passed; ESLint passed; a Next.js
-  production build succeeded before the latest Add Expense UI work.
-- **Latest Add Expense/category/label changes have not been verified
-  against the full local project in this handoff.** Run targeted
-  Vitest and Playwright tests, `pnpm run typecheck`, and
-  `pnpm run lint` after applying the patch.
-- Playwright configuration uses `testDir: './tests'`; run E2E tests
-  with `pnpm e2e`. Keep feature specs separate (for example
-  `login-flow.spec.ts`, `home-add-expense.spec.ts`, and
-  `transactions.spec.ts`) rather than placing all unrelated flows in
-  `login-flow.spec.ts`.
+- [`.env.example`](../.env.example) lists the five application variables:
+  `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`,
+  `APP_ORIGIN`, `SUPABASE_SECRET_KEY`, and `AUTH_RATE_LIMIT_SECRET`.
+  Public and server keys must belong to the same Supabase instance.
+- The public client accepts only `sb_publishable_*`; the OTP limiter uses a
+  server-only `sb_secret_*` key. Legacy anon/service-role JWT variables are not
+  substitutes. Never expose server secrets through `NEXT_PUBLIC_*`.
+- `APP_ORIGIN` must exactly match the browser origin without a trailing slash.
+  Use HTTPS for production. The rate-limit secret must be cryptographically
+  random, at least 32 characters, persistent, and shared across app instances.
+- The local `AUTH_NOT_CONFIGURED` issue was caused by a missing `.env.local`.
+  An ignored local file was created using the running local instance's keys.
+  Next.js picked it up without a process restart. For future changes, restart
+  local development explicitly; Vercel environment changes require a new build/
+  deployment. Never commit the local file or reuse local credentials in production.
+- Error boundaries: missing origin or invalid server/rate-limit secrets produce
+  `503 AUTH_NOT_CONFIGURED`; invalid public configuration produces
+  `503 BACKEND_NOT_CONFIGURED`; limiter/provider failures produce
+  `503 AUTH_UNAVAILABLE`; rate limiting returns `429`.
+- Local emails go to Mailpit at <http://127.0.0.1:54324>, not real inboxes.
+  Hosted Auth requires custom SMTP with a verified sender/domain. Configure
+  SMTP credentials in Supabase, not application public variables.
+- Hosted settings must be configured explicitly; local
+  [`supabase/config.toml`](../supabase/config.toml) does not automatically apply
+  them. Enable email signup and confirmation, disable anonymous signup, use
+  six-digit OTPs with 300-second expiry and a 60-second resend cooldown, and
+  enable refresh-token rotation (local reuse interval: 10 seconds).
+  Both signup confirmation and magic-link/OTP templates must include
+  `{{ .Token }}`; see [email template](../supabase/templates/email-otp.html).
+  Set the Site URL to the canonical application origin and review SMTP limits.
+- The server enforces a five-minute browser-bound challenge, three verification
+  attempts, five sends/account/hour, and twenty sends/IP/hour through PostgreSQL.
+  Vercel supplies `VERCEL=1`; verify its trusted `x-vercel-forwarded-for` request
+  header during hosted smoke testing. Do not enable `BUDGETLY_LOCAL_AUTH_TESTS`
+  in production or expose the `private` schema through the Data API.
+- Actual Vercel dashboard variables and hosted Supabase settings have not been
+  inspected or changed. No remote connection, migration, deployment, or
+  production-data operation was performed.
+
+## Foundation Migrations and Clean Replay
+
+Apply only these implementation migrations, in order:
+
+1. [`20261025000100_workspace_foundation.sql`](../supabase/migrations/20261025000100_workspace_foundation.sql):
+   profiles, workspaces/memberships, category scopes, integrity triggers, RLS,
+   and restricted grants/default privileges.
+2. [`20261025000200_email_auth.sql`](../supabase/migrations/20261025000200_email_auth.sql):
+   private challenge/rate-limit tables, OTP limiter, Personal provisioning, and
+   deferred integrity trigger security fixes.
+
+- `public.consume_otp_limit(text,text,text,uuid)` is executable only by
+  `service_role`; `public.ensure_personal_workspace()` is executable by
+  `authenticated`. Both are security-definer functions with empty search paths.
+  Foundation triggers/helpers and their grants are also required for first login.
+- Existing local history records both versions, but the second migration's
+  historical statements differ from its current file. Inspected live local
+  function bodies match current source. History was not edited to hide this.
+- A separate clean Supabase project, `budgetly_replay_c24c598f`, replayed the
+  exact source files using API port 55421, DB port 55422, and Mailpit port 55424.
+  Both freshly recorded migrations matched normalized source SQL. Migration
+  bytes were unchanged; no additional migration fix was needed.
+- The existing local database was not reset or written to during replay/testing.
+  Disposable containers, volumes, temporary credentials, and source snapshot
+  were removed afterwards. The original stack and development server remained
+  running.
+- Do not apply Stage 4 SQL design drafts as extra deployment migrations. This
+  foundation does not implement the full financial schema.
+
+## Testing and Validation (2026-10-25)
+
+Executed results for the auth/workspace foundation:
+
+- Disposable stack: `pnpm exec supabase start --workdir $replay` applied both
+  migrations from scratch; `migration list --local --workdir $replay` confirmed
+  their versions. The attempted service exclusions were ignored by the CLI;
+  all enabled services started and were subsequently cleaned up.
+- `pnpm exec supabase db lint --local --workdir $replay --schema public,private --level warning --fail-on warning`:
+  passed with no schema errors.
+- `pnpm exec supabase test db --workdir $replay`: 81 assertions passed across
+  three files, including RLS/grants, OTP limits, verified provisioning,
+  idempotency, and membership isolation. Two extension-grant warnings were
+  non-failing. All eight application tables had RLS enabled.
+- Focused Vitest run: 94 tests passed across 12 files using
+  `--maxWorkers=1 --pool=threads`, covering auth, Supabase clients/session/proxy,
+  workspaces/selection/client, and login/verification/sign-out/selection components.
+  An earlier fork-pool run had a worker-startup timeout; the complete rerun passed.
+- `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, and `git diff --check` passed.
+  The standard `pnpm run build` passed in the isolated snapshot.
+- `pnpm exec playwright test 'email-auth.spec.ts' 'workspace-api.spec.ts' 'workspace-onboarding.spec.ts' 'login-flow.spec.ts' --workers=1`:
+  all 16 tests passed against a production build pointed at the disposable stack.
+  Coverage included real emailed OTP, invalid codes/attempt exhaustion, session
+  refresh/logout, selection isolation, removed/deleted memberships, and concurrent
+  first-login provisioning.
+- Browser fixtures currently hardcode normal local ports and container names.
+  Only the disposable source copy was retargeted to the alternate stack and
+  production server; repository infrastructure configuration was unchanged.
+  Snapshot dependency resolution initially failed; dependencies were restored
+  offline with the frozen lockfile. Dependency manifests remained unchanged.
+- The initial dev-server browser run had four failures. The production-build
+  rerun passed all 16. The OTP helper now waits for the request response and
+  asserts `202` before checking navigation, avoiding its observed cold-start race.
+- This was a focused validation, not a full Vitest or full Playwright suite.
+  Add Expense/refund-specific browser specs were not rerun in this pass.
+  No hosted SMTP, Vercel proxy behavior, or remote database was validated.
+
+Playwright uses `testDir: './tests'`. Normal local auth browser runs require
+Docker, the local Supabase stack, and `BUDGETLY_LOCAL_AUTH_TESTS=1`.
+See [README setup and commands](../README.md). Keep feature specs separate.
+
+## First Hosted Release Gates
+
+1. Review and commit the intended working-tree changes, including currently
+   untracked backend code, migrations, tests, and environment template, through
+   the normal PR process. Exclude all secrets. No commit or push was performed.
+2. Obtain separate approval before any remote connection or migration. Verify
+   target project identity, PostgreSQL compatibility, existing schema/history,
+   and backup/recovery capability before a targeted migration dry run.
+3. This CLI can update Vault secrets during `db push`; use `--skip-vault` for
+   the reviewed migration-only procedure. Do not include seed data or broad
+   grants. Apply only the two reviewed migrations after explicit approval.
+4. Configure hosted Auth/SMTP and Production-scoped Vercel variables, then build/
+   deploy the reviewed commit. Keep preview environments isolated from production.
+5. Before opening access, verify actual email delivery, first/repeat login,
+   session refresh/logout, OTP limits, workspace isolation, and HTTPS cookie flags.
+6. Keep access restricted until verification succeeds. Roll back the app to a
+   compatible release, or use maintenance/access restriction for a first release.
+   App rollback does not undo database changes. Both migrations are transactional,
+   but the first can remain committed if the second fails. There are no down
+   migrations: prefer a reviewed forward fix or separately approved verified
+   backup restore, never a production reset or ad hoc schema drop.
 
 ## Dependency Update Automation
 
