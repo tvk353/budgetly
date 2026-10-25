@@ -16,8 +16,10 @@ const items: Array<{
 
 export function HouseholdBottomNavigation({
   active,
+  homeHref = '/workspace/household',
 }: {
   active: 'home' | 'transactions' | 'budget' | 'savings' | 'more';
+  homeHref?: string;
 }) {
   return (
     <nav
@@ -33,7 +35,7 @@ export function HouseholdBottomNavigation({
         return item.href ? (
           <Link
             key={item.label}
-            href={item.href}
+            href={item.label === 'Home' ? homeHref : item.href}
             aria-current={isActive ? 'page' : undefined}
             className={`flex min-h-11 min-w-[54px] flex-col items-center justify-center rounded-lg py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] ${style}`}
           >

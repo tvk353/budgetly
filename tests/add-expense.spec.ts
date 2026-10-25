@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './helpers/auth-fixture';
 
 test('adds an expense without a Paid by field', async ({ page }) => {
   await page.goto('/transactions');

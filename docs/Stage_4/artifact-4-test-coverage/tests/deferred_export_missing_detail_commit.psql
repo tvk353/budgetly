@@ -1,0 +1,12 @@
+-- DRAFT TEST ONLY. COMMIT must fail when an export job has no required detail row.
+\set ON_ERROR_STOP on
+\set VERBOSITY verbose
+DO $guard$ BEGIN
+  IF current_setting('budgetly.disposable_test', true) IS DISTINCT FROM 'on' THEN
+    RAISE EXCEPTION 'Disposable-test connection marker is required';
+  END IF;
+END $guard$;
+BEGIN;
+UPDATE public.background_jobs SET job_type = 'export'
+ WHERE id = :'empty_job_id'::uuid;
+COMMIT;

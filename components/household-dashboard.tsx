@@ -116,7 +116,13 @@ function TransactionRow({
   );
 }
 
-export function HouseholdDashboard({ dashboard }: { dashboard: HouseholdDashboardData }) {
+export function HouseholdDashboard({
+  dashboard,
+  workspaceName,
+}: {
+  dashboard: HouseholdDashboardData;
+  workspaceName?: string;
+}) {
   const { budget } = dashboard;
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showAddRefund, setShowAddRefund] = useState(false);
@@ -257,16 +263,22 @@ export function HouseholdDashboard({ dashboard }: { dashboard: HouseholdDashboar
         <div className="mt-3 flex items-center justify-between gap-2">
           <Link
             href="/workspaces"
-            aria-label={`Switch Household workspace, ${dashboard.memberCount} members`}
+            aria-label={
+              workspaceName
+                ? `Switch workspace, currently ${workspaceName}`
+                : `Switch Household workspace, ${dashboard.memberCount} members`
+            }
             className="inline-flex min-h-11 min-w-0 items-center gap-2 rounded-full border border-[var(--color-border)] bg-white px-3 shadow-sm transition hover:border-[var(--color-soft-green)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
           >
             <span aria-hidden="true" className="text-base leading-none">
               🏠
             </span>
-            <span className="text-sm font-semibold">Household</span>
-            <span className="whitespace-nowrap rounded-full bg-[var(--color-light-teal)] px-2 py-0.5 text-[10px] font-semibold text-[var(--color-primary)]">
-              {dashboard.memberCount} members
-            </span>
+            <span className="text-sm font-semibold">{workspaceName ?? 'Household'}</span>
+            {!workspaceName && (
+              <span className="whitespace-nowrap rounded-full bg-[var(--color-light-teal)] px-2 py-0.5 text-[10px] font-semibold text-[var(--color-primary)]">
+                {dashboard.memberCount} members
+              </span>
+            )}
             <span aria-hidden="true" className="text-sm text-[var(--color-secondary-text)]">
               ⌄
             </span>

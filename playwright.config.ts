@@ -1,4 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
+import { localSupabaseEnvironment } from './tests/helpers/local-supabase';
+
+const localEnv =
+  process.env.BUDGETLY_LOCAL_AUTH_TESTS === '1' ? localSupabaseEnvironment() : undefined;
 
 export default defineConfig({
   testDir: './tests',
@@ -6,14 +10,15 @@ export default defineConfig({
   fullyParallel: true,
   retries: process.env.CI ? 2 : 0,
   use: {
-    baseURL: 'http://127.0.0.1:3000',
+    baseURL: 'http://127.0.0.1:3100',
     trace: 'on-first-retry',
     ...devices['Desktop Chrome'],
   },
   webServer: {
-    command: 'pnpm dev --hostname 127.0.0.1 --port 3000',
-    url: 'http://127.0.0.1:3000',
-    reuseExistingServer: !process.env.CI,
+    env: localEnv,
+    command: 'pnpm exec next dev --hostname 127.0.0.1 --port 3100',
+    url: 'http://127.0.0.1:3100',
+    reuseExistingServer: !process.env.CI && !localEnv,
     timeout: 120_000,
   },
 });

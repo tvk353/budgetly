@@ -7,6 +7,14 @@
 
 begin;
 
+-- These defaults apply only to the role executing this file. Apply equivalent
+-- defaults for every approved object-creating role. PostgreSQL does not enable
+-- RLS automatically for future tables; every table-creating migration must do so.
+alter default privileges revoke all on tables from public, anon, authenticated;
+alter default privileges in schema public revoke all on tables from public, anon, authenticated;
+alter default privileges revoke execute on functions from public, anon, authenticated, service_role;
+alter default privileges in schema public revoke execute on functions from public, anon, authenticated, service_role;
+
 -- ---------------------------------------------------------------------------
 -- Membership helper functions.
 -- SECURITY DEFINER avoids recursive policy evaluation on workspace_members.
@@ -84,14 +92,23 @@ as $function$
     select 1 from public.category_scope_members m
     where m.category_scope_id = p_category_scope_id
       and m.user_id = (select auth.uid())
+  ) or exists (
+    select 1
+    from public.workspace_category_scopes wcs
+    join public.workspace_members m on m.workspace_id = wcs.workspace_id
+    join public.workspaces w on w.id = wcs.workspace_id
+    where wcs.category_scope_id = p_category_scope_id
+      and m.user_id = (select auth.uid())
+      and m.status = 'active'
+      and w.deleted_at is null
   );
 $function$;
 
 revoke all on function public.shares_active_workspace_with(uuid) from public, anon;
+revoke all on function public.shares_active_workspace_with(uuid) from authenticated, service_role;
 revoke all on function public.is_category_scope_member(uuid) from public, anon;
 grant execute on function public.is_active_workspace_member(uuid) to authenticated, service_role;
 grant execute on function public.is_active_workspace_owner(uuid) to authenticated, service_role;
-grant execute on function public.shares_active_workspace_with(uuid) to authenticated, service_role;
 grant execute on function public.is_category_scope_member(uuid) to authenticated, service_role;
 
 -- ---------------------------------------------------------------------------
@@ -127,6 +144,7 @@ alter table public.deletion_tombstones enable row level security;
 
 -- Default deny: revoke table privileges first; grants below are deliberate.
 revoke all on all tables in schema public from anon, authenticated;
+revoke all on all functions in schema public from public, anon, authenticated, service_role;
 
 -- Profiles: users may read/update their own profile only.
 grant select on public.profiles to authenticated;
@@ -152,9 +170,11 @@ create policy workspace_members_select_member on public.workspace_members
   for select to authenticated
   using (public.is_active_workspace_member(workspace_id));
 
--- Invitations: active workspace members may view invitations; mutations through
--- server/RPC so token_hash and join/revoke state cannot be forged by clients.
-grant select on public.workspace_invitations to authenticated;
+-- Expose invitation roster fields only. The bearer-token hash is never
+-- selectable by ordinary clients; mutations remain server/RPC-only.
+grant select (id, workspace_id, invited_by_user_id, invitee_email, expires_at,
+              revoked_at, joined_at, created_at)
+  on public.workspace_invitations to authenticated;
 create policy workspace_invitations_select_member on public.workspace_invitations
   for select to authenticated
   using (public.is_active_workspace_member(workspace_id));
@@ -178,6 +198,9 @@ create policy category_scopes_select_member on public.category_scopes
   for select to authenticated using (public.is_category_scope_member(id));
 create policy category_scope_members_select_scope on public.category_scope_members
   for select to authenticated using (public.is_category_scope_member(category_scope_id));
+grant select on public.workspace_category_scopes to authenticated;
+create policy workspace_category_scopes_select_member on public.workspace_category_scopes
+  for select to authenticated using (public.is_active_workspace_member(workspace_id));
 
 -- Built-ins are globally readable; custom categories are readable only within their scope.
 -- Custom category writes are routed through a trusted endpoint/RPC so creator, scope membership,
@@ -192,9 +215,13 @@ create policy categories_select_visible on public.categories
 -- Idempotency rows are server-only; clients never read or mutate raw replay metadata.
 -- No authenticated grants or policies are intentionally created for idempotency_records.
 
--- Category visibility: household owner only for direct client writes.
--- The table trigger still enforces household + built-in category compatibility.
-grant select, insert, update, delete on public.workspace_category_visibility to authenticated;
+-- Category visibility: household owner only for direct client writes. Keep
+-- workspace/category identity and timestamps immutable to ordinary clients.
+grant select on public.workspace_category_visibility to authenticated;
+grant insert (workspace_id, category_id, is_hidden)
+  on public.workspace_category_visibility to authenticated;
+grant update (is_hidden) on public.workspace_category_visibility to authenticated;
+grant delete on public.workspace_category_visibility to authenticated;
 create policy category_visibility_select_member on public.workspace_category_visibility
   for select to authenticated
   using (public.is_active_workspace_member(workspace_id));
@@ -210,20 +237,29 @@ create policy category_visibility_delete_owner on public.workspace_category_visi
   using (public.is_active_workspace_owner(workspace_id));
 
 -- Labels: reusable across categories, scoped to the active workspace.
--- Server handlers should normalize/trim names; active names are unique case-insensitively.
-grant select, insert, update, delete on public.labels to authenticated;
+-- Deletion and retention metadata are trusted lifecycle operations.
+grant select on public.labels to authenticated;
+grant insert (workspace_id, name) on public.labels to authenticated;
+grant update (name) on public.labels to authenticated;
 create policy labels_select_member on public.labels
-  for select to authenticated using (public.is_active_workspace_member(workspace_id));
+  for select to authenticated
+  using (deleted_at is null and public.is_active_workspace_member(workspace_id));
 create policy labels_insert_member on public.labels
   for insert to authenticated with check (public.is_active_workspace_member(workspace_id));
 create policy labels_update_member on public.labels
-  for update to authenticated using (public.is_active_workspace_member(workspace_id))
-  with check (public.is_active_workspace_member(workspace_id));
-create policy labels_delete_member on public.labels
-  for delete to authenticated using (public.is_active_workspace_member(workspace_id));
+  for update to authenticated
+  using (deleted_at is null and public.is_active_workspace_member(workspace_id))
+  with check (deleted_at is null and public.is_active_workspace_member(workspace_id));
 
 -- Ordinary transactions: all active members can manage household finances.
-grant select, insert, update, delete on public.transactions to authenticated;
+-- Restore, Trash, and purge metadata are trusted operations. Clients cannot
+-- hard-delete, reparent, relink, or edit a trashed transaction directly.
+grant select on public.transactions to authenticated;
+grant insert (workspace_id, category_id, label_id, linked_expense_id, type,
+              amount, transaction_date, description, notes)
+  on public.transactions to authenticated;
+grant update (amount, transaction_date, category_id, label_id, description, notes)
+  on public.transactions to authenticated;
 create policy transactions_select_member on public.transactions
   for select to authenticated
   using (public.is_active_workspace_member(workspace_id));
@@ -232,14 +268,16 @@ create policy transactions_insert_member on public.transactions
   with check (public.is_active_workspace_member(workspace_id));
 create policy transactions_update_member on public.transactions
   for update to authenticated
-  using (public.is_active_workspace_member(workspace_id))
-  with check (public.is_active_workspace_member(workspace_id));
-create policy transactions_delete_member on public.transactions
-  for delete to authenticated
-  using (public.is_active_workspace_member(workspace_id));
+  using (deleted_at is null and public.is_active_workspace_member(workspace_id))
+  with check (deleted_at is null and public.is_active_workspace_member(workspace_id));
 
 -- Budgets: all active members may manage the workspace budget.
-grant select, insert, update, delete on public.monthly_budgets to authenticated;
+-- Workspace/month identity is immutable. New rows are constrained by the
+-- current-IST-month insert trigger in Artifact 2.
+grant select on public.monthly_budgets to authenticated;
+grant insert (workspace_id, month_start, base_budget, rollover)
+  on public.monthly_budgets to authenticated;
+grant update (base_budget, rollover) on public.monthly_budgets to authenticated;
 create policy monthly_budgets_select_member on public.monthly_budgets
   for select to authenticated using (public.is_active_workspace_member(workspace_id));
 create policy monthly_budgets_insert_member on public.monthly_budgets
@@ -248,24 +286,26 @@ create policy monthly_budgets_update_member on public.monthly_budgets
   for update to authenticated
   using (public.is_active_workspace_member(workspace_id))
   with check (public.is_active_workspace_member(workspace_id));
-create policy monthly_budgets_delete_member on public.monthly_budgets
-  for delete to authenticated using (public.is_active_workspace_member(workspace_id));
 
--- Savings funds: all active members can manage shared workspace savings.
-grant select, insert, update, delete on public.savings_funds to authenticated;
+-- Savings funds: active members can create and rename funds.
+-- Fund deletion/restoration and retention metadata are trusted operations.
+grant select on public.savings_funds to authenticated;
+grant insert (workspace_id, name) on public.savings_funds to authenticated;
+grant update (name) on public.savings_funds to authenticated;
 create policy savings_funds_select_member on public.savings_funds
   for select to authenticated using (public.is_active_workspace_member(workspace_id));
 create policy savings_funds_insert_member on public.savings_funds
   for insert to authenticated with check (public.is_active_workspace_member(workspace_id));
 create policy savings_funds_update_member on public.savings_funds
   for update to authenticated
-  using (public.is_active_workspace_member(workspace_id))
-  with check (public.is_active_workspace_member(workspace_id));
-create policy savings_funds_delete_member on public.savings_funds
-  for delete to authenticated using (public.is_active_workspace_member(workspace_id));
+  using (deleted_at is null and public.is_active_workspace_member(workspace_id))
+  with check (deleted_at is null and public.is_active_workspace_member(workspace_id));
 
 -- Savings transactions have no workspace_id; scope through their fund.
-grant select, insert, update, delete on public.savings_transactions to authenticated;
+-- Updates, Trash, and purge are trusted operations; only active funds accept writes.
+grant select on public.savings_transactions to authenticated;
+grant insert (fund_id, type, amount, transaction_date, description, notes)
+  on public.savings_transactions to authenticated;
 create policy savings_transactions_select_member on public.savings_transactions
   for select to authenticated
   using (exists (
@@ -278,54 +318,35 @@ create policy savings_transactions_insert_member on public.savings_transactions
   with check (exists (
     select 1 from public.savings_funds f
     where f.id = fund_id
-      and public.is_active_workspace_member(f.workspace_id)
-  ));
-create policy savings_transactions_update_member on public.savings_transactions
-  for update to authenticated
-  using (exists (
-    select 1 from public.savings_funds f
-    where f.id = fund_id
-      and public.is_active_workspace_member(f.workspace_id)
-  ))
-  with check (exists (
-    select 1 from public.savings_funds f
-    where f.id = fund_id
-      and public.is_active_workspace_member(f.workspace_id)
-  ));
-create policy savings_transactions_delete_member on public.savings_transactions
-  for delete to authenticated
-  using (exists (
-    select 1 from public.savings_funds f
-    where f.id = fund_id
+      and f.deleted_at is null
       and public.is_active_workspace_member(f.workspace_id)
   ));
 
--- Trackers: all active members may manage trackers.
-grant select, insert, update, delete on public.trackers to authenticated;
+-- Trackers: active members can create, rename, and hide/show trackers.
+-- Reopen/end/delete state transitions are trusted operations.
+grant select on public.trackers to authenticated;
+grant insert (workspace_id, name) on public.trackers to authenticated;
+grant update (name, is_hidden) on public.trackers to authenticated;
 create policy trackers_select_member on public.trackers
   for select to authenticated using (public.is_active_workspace_member(workspace_id));
 create policy trackers_insert_member on public.trackers
   for insert to authenticated with check (public.is_active_workspace_member(workspace_id));
 create policy trackers_update_member on public.trackers
   for update to authenticated
-  using (public.is_active_workspace_member(workspace_id))
-  with check (public.is_active_workspace_member(workspace_id));
-create policy trackers_delete_member on public.trackers
-  for delete to authenticated using (public.is_active_workspace_member(workspace_id));
+  using (deleted_at is null and public.is_active_workspace_member(workspace_id))
+  with check (deleted_at is null and public.is_active_workspace_member(workspace_id));
 
 -- Tracker transactions: RLS scopes directly by workspace_id; composite FK
 -- enforces tracker/workspace consistency.
-grant select, insert, update, delete on public.tracker_transactions to authenticated;
+-- Edit, Trash, restore, and purge transitions use trusted operations.
+grant select on public.tracker_transactions to authenticated;
+grant insert (workspace_id, tracker_id, category_id, linked_expense_id,
+              type, amount, transaction_date, description, notes)
+  on public.tracker_transactions to authenticated;
 create policy tracker_transactions_select_member on public.tracker_transactions
   for select to authenticated using (public.is_active_workspace_member(workspace_id));
 create policy tracker_transactions_insert_member on public.tracker_transactions
   for insert to authenticated with check (public.is_active_workspace_member(workspace_id));
-create policy tracker_transactions_update_member on public.tracker_transactions
-  for update to authenticated
-  using (public.is_active_workspace_member(workspace_id))
-  with check (public.is_active_workspace_member(workspace_id));
-create policy tracker_transactions_delete_member on public.tracker_transactions
-  for delete to authenticated using (public.is_active_workspace_member(workspace_id));
 
 -- Audit log: read-only for workspace members; client cannot forge events.
 grant select on public.audit_logs to authenticated;
@@ -344,12 +365,7 @@ create policy audit_logs_select_member on public.audit_logs
 commit;
 
 
--- RECONCILIATION NOTE (design draft; integrate and review before execution):
--- The selected model adds public.workspace_category_scopes (workspace_id, category_scope_id).
--- A household workspace maps to every active member's category scope; each personal workspace
--- maps to its owner's scope. Scope membership is synchronized transactionally during household
--- join/leave. Add a helper that authorizes category scope access when the user is a scope member
--- OR is an active member of a workspace linked to that scope. Use that helper consistently for
--- categories, category_scopes, category_scope_members, and workspace_category_scopes SELECT rules.
--- Keep INSERT/UPDATE/DELETE on scope membership and mapping tables server/RPC-only.
--- This note is not a claim that the policy draft has been validated or executed.
+-- Reconciled category-scope draft: is_category_scope_member allows a direct scope
+-- member or an active member of a workspace linked to that scope. Mapping and scope
+-- membership writes remain trusted, transactional operations. This policy draft has
+-- not been executed or validated against a database.

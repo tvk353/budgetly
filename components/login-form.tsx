@@ -3,17 +3,20 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { budgetlyBrand, demoEmail } from '@/lib/mock-data';
+import { budgetlyBrand } from '@/lib/mock-data';
+import { authRequest } from '@/lib/auth/client';
 
 export function LoginForm() {
   const router = useRouter();
-  const [email, setEmail] = useState(demoEmail);
+  const [email, setEmail] = useState('');
   const [error, setError] = useState('');
+  const [pending, setPending] = useState(false);
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const normalized = email.trim();
+    if (pending) return;
+    const normalized = email.trim().toLowerCase();
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!emailPattern.test(normalized)) {
@@ -22,7 +25,15 @@ export function LoginForm() {
     }
 
     setError('');
-    router.push(`/verify?email=${encodeURIComponent(normalized)}`);
+    setPending(true);
+    try {
+      await authRequest('otp/request', { email: normalized });
+      router.push(`/verify?email=${encodeURIComponent(normalized)}`);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Unable to send a code.');
+    } finally {
+      setPending(false);
+    }
   };
 
   return (
@@ -48,6 +59,8 @@ export function LoginForm() {
           <input
             id="email"
             type="email"
+            autoComplete="email"
+            required
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             placeholder="you@example.com"
@@ -57,21 +70,25 @@ export function LoginForm() {
         </div>
 
         {error ? (
-          <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p
+            role="alert"
+            className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+          >
             {error}
           </p>
         ) : null}
 
         <button
           type="submit"
+          disabled={pending}
           className="w-full rounded-2xl bg-[var(--color-primary)] px-4 py-3 text-base font-semibold text-white shadow-[0_12px_24px_rgba(23,107,87,0.25)] transition hover:bg-[#114d41]"
         >
-          Continue
+          {pending ? 'Sending code...' : 'Continue'}
         </button>
       </form>
 
       <div className="mt-6 rounded-2xl border border-[var(--color-light-teal)] bg-[var(--color-light-teal)] px-4 py-3 text-sm text-[var(--color-main-text)]">
-        Demo email: <span className="font-medium">{demoEmail}</span>
+        We will email you a single-use sign-in code. It expires in five minutes.
       </div>
     </section>
   );

@@ -15,11 +15,15 @@ import {
 
 interface BudgetScreenProps {
   initialMonthKey?: string;
+  workspaceName?: string;
 }
 
 const availableMonthKeys = ['2025-02', '2025-03', '2025-04'];
 
-export function BudgetScreen({ initialMonthKey = '2025-03' }: BudgetScreenProps) {
+export function BudgetScreen({
+  initialMonthKey = '2025-03',
+  workspaceName = 'Household',
+}: BudgetScreenProps) {
   const [selectedMonthKey, setSelectedMonthKey] = useState(initialMonthKey);
   const [isEditing, setIsEditing] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
@@ -52,12 +56,12 @@ export function BudgetScreen({ initialMonthKey = '2025-03' }: BudgetScreenProps)
             {/* Household Switcher Pill */}
             <Link
               href="/workspaces"
-              aria-label="Switch workspace, currently Household with 2 members"
+              aria-label={`Switch workspace, currently ${workspaceName}`}
               className="mb-0.5 inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-light-teal)] px-2.5 py-1 transition-transform active:scale-[0.985]"
             >
               <span className="flex items-center gap-1 text-[11px] font-semibold text-[var(--color-primary)]">
                 <DashboardIcon name="home" className="h-3 w-3" />
-                Household (2 members)
+                {workspaceName}
               </span>
               <DashboardIcon
                 name="chevron-down"
@@ -104,6 +108,9 @@ export function BudgetScreen({ initialMonthKey = '2025-03' }: BudgetScreenProps)
 
       {/* Main Content */}
       <main className="flex-1 space-y-5 px-5 pt-4">
+        <p className="text-xs text-[var(--color-secondary-text)]">
+          Sample financial data only. Changes are not saved.
+        </p>
         {/* Month Selector Pill Bar */}
         <section aria-label="Month Navigation">
           <div className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-white p-1.5 shadow-[0_2px_8px_rgba(32,42,39,0.03)]">

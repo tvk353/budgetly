@@ -6,12 +6,19 @@ import Link from 'next/link';
 import { DashboardIcon } from '@/components/dashboard-icon';
 import { HouseholdBottomNavigation } from '@/components/household-bottom-navigation';
 import { mockMoreHubData, type MoreHubData } from '@/lib/more-data';
+import { SignOutButton } from '@/components/sign-out-button';
 
 interface MoreHubScreenProps {
   initialData?: MoreHubData;
+  workspaceName?: string;
+  workspaceType?: 'personal' | 'household';
 }
 
-export function MoreHubScreen({ initialData = mockMoreHubData }: MoreHubScreenProps) {
+export function MoreHubScreen({
+  initialData = mockMoreHubData,
+  workspaceName,
+  workspaceType = 'household',
+}: MoreHubScreenProps) {
   const [data] = useState<MoreHubData>(initialData);
   const [showHelp, setShowHelp] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -26,7 +33,7 @@ export function MoreHubScreen({ initialData = mockMoreHubData }: MoreHubScreenPr
       <header className="sticky top-0 z-40 border-b border-[var(--color-border)] bg-[color:rgba(250,249,246,0.92)] px-5 pb-2 pt-safe backdrop-blur-md">
         <div className="flex h-12 w-full items-center justify-between">
           <Link
-            href="/workspace/household"
+            href={`/workspace/${workspaceType}`}
             aria-label="Back"
             className="-ml-1 flex h-10 w-10 items-center justify-center rounded-full text-[var(--color-secondary-text)] transition-transform hover:opacity-80 active:scale-[0.985]"
           >
@@ -52,12 +59,12 @@ export function MoreHubScreen({ initialData = mockMoreHubData }: MoreHubScreenPr
         <div className="flex justify-center pb-1">
           <Link
             href="/workspaces"
-            aria-label="Switch workspace, currently Household with 2 members"
+            aria-label={`Switch workspace, currently ${workspaceName ?? 'Household with 2 members'}`}
             className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-light-teal)] px-3 py-1 transition-transform active:scale-[0.985]"
           >
             <span className="text-[13px] select-none">🏠</span>
             <span className="text-[11px] font-semibold text-[var(--color-primary)]">
-              Household (2 members)
+              {workspaceName ?? 'Household (2 members)'}
             </span>
             <DashboardIcon name="chevron-down" className="h-3 w-3 text-[var(--color-primary)]" />
           </Link>
@@ -81,6 +88,10 @@ export function MoreHubScreen({ initialData = mockMoreHubData }: MoreHubScreenPr
 
       {/* Main Content Stream */}
       <main className="flex-1 space-y-4 px-5 pt-3">
+        <p className="text-xs text-[var(--color-secondary-text)]">
+          Profile, member previews and financial data below are sample-only. Workspace selection and
+          sign-out are live.
+        </p>
         {/* Floating Notice Banner for unavailable features */}
         {notice && (
           <div
@@ -121,7 +132,9 @@ export function MoreHubScreen({ initialData = mockMoreHubData }: MoreHubScreenPr
               </p>
               <div className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-[var(--color-primary)]">
                 <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-primary)]" />
-                <span>{data.user.workspaceStatus}</span>
+                <span>
+                  {workspaceName ? `Active workspace: ${workspaceName}` : data.user.workspaceStatus}
+                </span>
               </div>
             </div>
             <button
@@ -283,7 +296,7 @@ export function MoreHubScreen({ initialData = mockMoreHubData }: MoreHubScreenPr
             {/* Row 2: Workspace Mode Switcher (Active Link to /workspaces) */}
             <Link
               href="/workspaces"
-              aria-label="Workspace Switcher, Active: Household Shared, click to switch"
+              aria-label={`Workspace Switcher, Active: ${workspaceName ?? 'Household Shared'}, click to switch`}
               className="flex items-center justify-between p-3.5 transition-transform active:scale-[0.985]"
             >
               <div className="flex items-center gap-3">
@@ -295,7 +308,7 @@ export function MoreHubScreen({ initialData = mockMoreHubData }: MoreHubScreenPr
                     Workspace Switcher
                   </p>
                   <p className="text-[12px] text-[var(--color-secondary-text)]">
-                    Active: Household Shared
+                    Active: {workspaceName ?? 'Household Shared'}
                   </p>
                 </div>
               </div>
@@ -439,29 +452,7 @@ export function MoreHubScreen({ initialData = mockMoreHubData }: MoreHubScreenPr
             </button>
 
             {/* Row 3: Log Out (Active Link to /) */}
-            <Link
-              href="/"
-              aria-label="Sign Out of Budgetly"
-              className="group flex items-center justify-between p-3.5 transition-transform active:scale-[0.985]"
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-light-teal)] text-[var(--color-secondary-text)] transition-colors group-hover:text-rose-600">
-                  <DashboardIcon name="logout" className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-[14px] font-semibold text-[var(--color-main-text)] transition-colors group-hover:text-rose-600">
-                    Sign Out of Budgetly
-                  </p>
-                  <p className="text-[12px] text-[var(--color-secondary-text)]">
-                    Local encryption key remains safe
-                  </p>
-                </div>
-              </div>
-              <DashboardIcon
-                name="chevron-right"
-                className="h-4 w-4 text-[var(--color-secondary-text)]"
-              />
-            </Link>
+            <SignOutButton />
           </div>
         </section>
 
@@ -477,7 +468,7 @@ export function MoreHubScreen({ initialData = mockMoreHubData }: MoreHubScreenPr
       </main>
 
       {/* Shared Semantic Bottom Navigation */}
-      <HouseholdBottomNavigation active="more" />
+      <HouseholdBottomNavigation active="more" homeHref={`/workspace/${workspaceType}`} />
     </div>
   );
 }

@@ -31,6 +31,19 @@ This does **not** mean the SQL has been proven executable or the application is 
 | D13 — Migration approach                | Expand, verify, then switch                            | Additive migrations first; then constraints/indexes/functions; then RLS/grants; then application route switch. Use disposable local environment, staging verification, and verified recovery before destructive changes.                                                            |
 | D14 — Testing                           | Complete plan now, execute only with separate approval | Test definitions and matrices are design artifacts. No tests are run in this completion pass. Before implementation readiness, replace harness placeholders and run tests only in a disposable local Supabase/PostgreSQL environment after explicit approval.                       |
 
+### PRD reconciliation and API money conversion
+
+- **Custom category scope:** D1 is the approved decision. The PRD now states that built-in categories are global and custom categories belong to per-user scopes linked to Personal and Shared Household workspaces. Custom names are unique within a scope; same-named rows from different scopes remain distinct.
+- **Household membership:** The approved ERD model allows more than two active household members, with exactly one active owner and no two-member cap. The PRD and root README now use that model. The schema checklist still requires verification that the draft enforces it.
+- **Money conversion:** API amounts are INR decimal strings; the UI boundary uses integer paise; PostgreSQL stores exact `numeric(14,2)`. Parse the decimal string as digits, pad the fractional part to two digits, and calculate `paise = whole_rupees * 100 + fractional_paise` without floating-point arithmetic. For example, `"123.4"` becomes `12340` paise and `"123"` becomes `12300` paise. Serialize integer paise as a decimal string with exactly two fractional digits, such as `12345` paise as `"123.45"`. Reject zero or invalid precision according to the existing positive-amount API rule.
+- **PRD source:** The canonical PRD is present at `docs/PRD.md`. Earlier statements in this package that the source PRD was absent are incorrect and have been removed. The PRD already contains the workspace-scoped label requirements.
+
+### Database design validation (25 October 2026)
+
+Static review only; no database was connected, no tests were run, and no migration was applied. The draft SQL now removes authenticated hard-delete grants and limits editable columns; invitation reads exclude `token_hash`; category scope authorization uses linked workspace membership; and triggers guard current-month budget inserts, ordinary Trash retention, and both sides of job/detail consistency. These are **draft controls, not verified security properties**.
+
+Remaining blockers include Auth-user fixture provisioning through a version-pinned local helper; trusted, atomic Trash/restore/purge procedures; verifying default ACLs for every object-creating role and explicitly enabling RLS on each future table; and API/schema gaps (`compatible_types` versus `category_type`, tracker `description`, unspecified confirmation/settings fields, base-budget zero semantics, and missing label-delete route contract). Deterministic public fixtures, cleanup, RLS inventory, future-object ACL/RLS probe, deferred parent-change scripts, and manual two-session refund/edit/Trash/restore sessions are now drafted. They have not run. Purge concurrency remains blocked because no trusted purge contract exists and direct delete can detach refunds. OpenAPI has 70 operations across 52 path templates, matching the catalogue by count; Prettier parsed the YAML, but semantic/schema validation remains unrun and `x-contract-gap` markers remain. Do not treat the SQL as approved migrations or claim security verification.
+
 ## 3. Canonical data and security rules
 
 ### 3.1 Workspace and access model
@@ -91,7 +104,7 @@ This does **not** mean the SQL has been proven executable or the application is 
 2. **Artifact 2 — PostgreSQL schema/migration design:** DDL, indexes, constraints/functions, and staged migration plan drafted. SQL has not been executed.
 3. **Artifact 3 — RLS/authorization:** policy/grant model and trusted operation boundaries documented. SQL has not been executed.
 4. **Artifact 4 — Test coverage:** coverage matrix, test strategy, authorization/business-rule drafts, and integration scenarios documented. Tests have not been executed; fixture harness and final function bindings remain implementation preflight tasks.
-5. **Artifact 5 — API contracts:** full human-readable endpoint catalogue and detailed rules documented. OpenAPI is a representative machine-readable draft and must be expanded to the full catalogue and validated before implementation.
+5. **Artifact 5 — API contracts:** the human-readable catalogue has 70 method/path entries, and the OpenAPI draft now declares 70 operations across 52 path templates. Request/response details and several API/schema decisions remain marked as gaps; semantic/reference validation has not been run.
 
 ## 6. Stage 4 exit criteria
 
@@ -104,11 +117,13 @@ This does **not** mean the SQL has been proven executable or the application is 
 - [x] Test strategy and security review requirements documented.
 - [x] No implementation/database work was performed.
 
-**Deferred to the implementation-readiness gate (not blockers for beginning Stage 5 UI/UX):**
+**Deferred to the implementation-readiness gate (backend implementation/rollout blockers, not blockers for beginning Stage 5 UI/UX):**
 
-- [ ] Complete OpenAPI coverage and validate OpenAPI/JSON schemas.
-- [ ] Reconcile all SQL/RLS object names and grants with a static review.
-- [ ] Complete fixture harness and remove test placeholders.
+- [ ] Complete static schema review against the ERD, including table/column names, constraints, indexes, triggers/functions, ownership invariants, and migration ordering. SQL remains draft material and is not approved to apply.
+- [ ] Reconcile every RLS policy with final schema objects; review per-table grants/revokes, default privileges, helper-function `search_path`, and narrow function execution grants together.
+- [ ] Validate the trigger-backed linked-refund create/update contract: prove parent-row locking, aggregate checks, expense amount edits, and retries under multi-session concurrency. Add a trusted routine only if required by the finalized API/idempotency boundary.
+- [ ] Resolve `x-contract-gap` API/schema items and validate every OpenAPI path, operation, reference, and schema against the catalogue and final SQL design.
+- [ ] Complete deterministic pgTAP fixture setup/teardown, bind tests to final schema/functions, and remove placeholders. Include authenticated/anonymous-role tests and independent sessions for concurrency cases.
 - [ ] After separate explicit approval, run tests only in a disposable local Supabase/PostgreSQL environment and record results.
 - [ ] Review migration/rollback steps before any database execution.
 
@@ -137,4 +152,4 @@ Cross-artifact updates in this revision:
 - API/OpenAPI: add label list/create endpoints and optional `label_id` on transactions.
 - Tests: add planned database, authorization, uniqueness, cross-workspace and behavior coverage.
 
-This is a documentation/schema-draft update only. No migrations or tests were executed. The original PRD was not included in the supplied Stage 4 archive; update the PRD separately so its functional requirements match this addendum.
+This is a documentation/schema-draft update only. No migrations or tests were executed. The canonical PRD is present at `docs/PRD.md` and includes workspace-scoped reusable labels; the earlier statement that the PRD was not supplied was incorrect.

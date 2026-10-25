@@ -14,9 +14,13 @@ import {
 
 interface SavingsScreenProps {
   initialData?: SavingsDashboardData;
+  workspaceName?: string;
 }
 
-export function SavingsScreen({ initialData = mockSavingsData }: SavingsScreenProps) {
+export function SavingsScreen({
+  initialData = mockSavingsData,
+  workspaceName = 'Household',
+}: SavingsScreenProps) {
   const [data] = useState<SavingsDashboardData>(initialData);
   const [activeModal, setActiveModal] = useState<'new-fund' | 'deposit' | 'withdraw' | null>(null);
   const [showHelp, setShowHelp] = useState(false);
@@ -38,12 +42,12 @@ export function SavingsScreen({ initialData = mockSavingsData }: SavingsScreenPr
             {/* Household Switcher Pill */}
             <Link
               href="/workspaces"
-              aria-label="Switch workspace, currently Household"
+              aria-label={`Switch workspace, currently ${workspaceName}`}
               className="mb-0.5 inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-light-teal)] px-2.5 py-0.5 transition-transform active:scale-[0.985]"
             >
               <span className="text-[11px] leading-tight select-none">🏠</span>
               <span className="text-[11px] font-semibold text-[var(--color-primary)]">
-                Household
+                {workspaceName}
               </span>
             </Link>
             <h1 className="text-[17px] font-bold tracking-tight text-[var(--color-primary)]">
@@ -83,6 +87,9 @@ export function SavingsScreen({ initialData = mockSavingsData }: SavingsScreenPr
 
       {/* Main Content Stream */}
       <main className="flex-1 space-y-5 px-5 pt-3">
+        <p className="text-xs text-[var(--color-secondary-text)]">
+          Sample financial data only. Changes are not saved.
+        </p>
         {/* Serene Isolation Notice Banner */}
         <section
           aria-label="Isolation Notice"

@@ -55,5 +55,17 @@ jobs:
       - name: Build application
         run: pnpm run build
 
+      - name: Start and validate local Supabase
+        run: |
+          pnpm db:start > /dev/null
+          pnpm db:lint
+          pnpm db:test
+
       - name: Run end-to-end tests
+        env:
+          BUDGETLY_LOCAL_AUTH_TESTS: '1'
         run: pnpm run e2e
+
+      - name: Stop local Supabase
+        if: always()
+        run: pnpm db:stop

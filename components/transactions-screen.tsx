@@ -102,6 +102,7 @@ export function TransactionsScreen({
   monthRefundPaise,
   netSpentPaise,
   transactionCount,
+  workspaceName = 'Household',
 }: {
   transactions: DatedMockTransaction[];
   todayKey: string;
@@ -111,6 +112,7 @@ export function TransactionsScreen({
   monthRefundPaise: number;
   netSpentPaise: number;
   transactionCount: number;
+  workspaceName?: string;
 }) {
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showAddRefund, setShowAddRefund] = useState(false);
@@ -251,11 +253,11 @@ export function TransactionsScreen({
         <div className="flex items-center justify-between gap-2 px-5 pb-2">
           <a
             href="/workspaces"
-            aria-label="Household workspace, switch workspace"
+            aria-label={`${workspaceName} workspace, switch workspace`}
             className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[#efeeeb] px-3 text-[13px] font-semibold text-[var(--color-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
           >
             <span aria-hidden="true">🏠</span>
-            <span>Household</span>
+            <span>{workspaceName}</span>
             <span aria-hidden="true">⌄</span>
           </a>
           <span className="text-[17px] font-bold text-[var(--color-primary)]">Budgetly</span>

@@ -63,7 +63,7 @@ describe('MoreHubScreen', () => {
     expect(workspaceSwitcher).toHaveAttribute('href', '/workspaces');
   });
 
-  it('renders Data Vault, Security, and Sign Out linking to login', () => {
+  it('renders Data Vault, Security, and a session sign-out action', () => {
     render(<MoreHubScreen />);
 
     expect(screen.getByText('Trash & Recovery')).toBeInTheDocument();
@@ -72,8 +72,7 @@ describe('MoreHubScreen', () => {
     expect(screen.getByText('Appearance & Locale')).toBeInTheDocument();
     expect(screen.getByText('Security & Privacy')).toBeInTheDocument();
 
-    const signOut = screen.getByRole('link', { name: 'Sign Out of Budgetly' });
-    expect(signOut).toHaveAttribute('href', '/');
+    expect(screen.getByRole('button', { name: 'Sign Out of Budgetly' })).toBeInTheDocument();
 
     // Version stamp
     expect(screen.getByText(/Budgetly iOS v2.4.1/)).toBeInTheDocument();

@@ -5,12 +5,13 @@ The PRD defines what the application must do from the user's point of view.
 
 1. Accounts and workspaces
 
-- Two users authenticate using email OTP.
+- Users authenticate using email OTP.
 - Login persists until logout, session revocation, or a security event.
 - On iPhone, users who install the app as a Home Screen PWA must unlock it with a device passkey using Face ID, when available, each time the app is opened. This is an app lock layered over the authenticated session, not a replacement for account authentication.
 - If device passkey authentication is unavailable, users can unlock with email OTP.
 - Each user has a private Personal workspace.
-- Both users can access the Shared Household workspace.
+- Household members can access the Shared Household workspace.
+- A household may have more than two active members, with exactly one active owner; there is no two-member cap.
 - The default workspace after login is Shared Household.
 - Users can switch to their own Personal workspace.
 - Household members have equal permissions for ordinary household finance operations.
@@ -79,15 +80,15 @@ The PRD defines what the application must do from the user's point of view.
 6. Categories
 
 - Ordinary expense categories and tracker categories are separate types.
-- Each type has built-in and globally shared custom categories.
-- Custom names are globally unique case-insensitively after trimming spaces, with a maximum of 30 characters.
+- Built-in categories are globally shared. Custom categories belong to per-user category scopes: a Personal workspace links to its owner's scope, and a Shared Household workspace links to each active member's scope.
+- Custom names are unique case-insensitively within their scope after trimming spaces, with a maximum of 30 characters. Built-in names remain globally reserved.
 - Optional description up to 200 characters, user-selected color, and optional predefined icon.
 - Custom names cannot conflict with built-in names.
 - Built-in categories cannot be renamed or permanently deleted by users.
 - The household owner controls built-in category visibility in Shared Household only.
 - Custom categories can be created, renamed, archived, and restored.
 - Archived categories cannot be selected for new transactions but remain linked to historical records.
-- Category definitions are global; financial records remain private to their workspace.
+- Same-named custom categories from different user scopes remain distinct; financial records remain private to their workspace.
 
 7. Trash, deletion, and recovery
 
@@ -99,7 +100,7 @@ The PRD defines what the application must do from the user's point of view.
 - Workspace deletion has three confirmation steps and a 30-day recovery period.
 - Restoration is limited to currently authorized household members.
 - Account deletion disables sign-in immediately and starts a 30-day recovery period.
-- Shared household records remain available to the other authorized member.
+- Shared household records remain available to other active, authorized household members.
 - Encrypted backups may retain copies until their 90-day retention expires, but restore must not resurrect permanently deleted workspaces.
 
 8. Audit history

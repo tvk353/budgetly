@@ -11,8 +11,9 @@ info:
     maximum 100). Idempotency terminal results are retained for at least 24 hours.
     Annual Drive exports are private and recipient-specific. This OpenAPI file covers the primary
     routes and is a machine-readable subset of the complete route catalogue in API_CONTRACTS.md.
-    YAML syntax parses successfully; full OpenAPI semantic validation and route expansion remain
-    implementation-readiness gates.
+    Prettier successfully parsed/formatted the YAML, but OpenAPI semantics and referenced schemas
+    have not been validated. Operation counts match the human-readable catalogue; unresolved
+    payload details remain marked as contract gaps rather than inferred here.
 servers:
   - url: /api/v1
 security:
@@ -125,18 +126,14 @@ paths:
     get:
       tags: [Workspaces]
       summary: List accessible workspaces
+      parameters:
+        - $ref: '#/components/parameters/PageNumber'
       responses:
         '200':
           description: Workspaces
           content:
             application/json:
-              schema:
-                type: object
-                required: [data]
-                properties:
-                  data:
-                    type: array
-                    items: { $ref: '#/components/schemas/Workspace' }
+              schema: { $ref: '#/components/schemas/ResourceCollection' }
         '401': { $ref: '#/components/responses/Unauthorized' }
     post:
       tags: [Workspaces]
@@ -167,18 +164,13 @@ paths:
       summary: List reusable labels in a workspace
       parameters:
         - { $ref: '#/components/parameters/WorkspaceId' }
+        - { $ref: '#/components/parameters/PageNumber' }
       responses:
         '200':
           description: Active labels in the workspace
           content:
             application/json:
-              schema:
-                type: object
-                required: [data]
-                properties:
-                  data:
-                    type: array
-                    items: { $ref: '#/components/schemas/Label' }
+              schema: { $ref: '#/components/schemas/ResourceCollection' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
     post:
@@ -235,7 +227,7 @@ paths:
                   data:
                     type: array
                     items: { $ref: '#/components/schemas/Transaction' }
-                  page: { $ref: '#/components/schemas/Page' }
+                  page: { $ref: '#/components/schemas/CursorPage' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
         '400': { $ref: '#/components/responses/BadRequest' }
@@ -294,6 +286,7 @@ paths:
                 amount: { $ref: '#/components/schemas/Amount' }
                 date: { type: string, format: date }
                 category_id: { type: string, format: uuid }
+                label_id: { type: [string, 'null'], format: uuid }
                 description: { type: [string, 'null'], maxLength: 50 }
                 notes: { type: [string, 'null'], maxLength: 500 }
               additionalProperties: false
@@ -315,10 +308,10 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
-  /workspaces/{workspaceId}/budgets/{month}:
+  /workspaces/{workspaceId}/budgets/{yyyy-mm}:
     parameters:
       - $ref: '#/components/parameters/WorkspaceId'
-      - name: month
+      - name: yyyy-mm
         in: path
         required: true
         schema: { type: string, pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$' }
@@ -356,6 +349,20 @@ paths:
   /workspaces/{workspaceId}/exports:
     parameters:
       - $ref: '#/components/parameters/WorkspaceId'
+    get:
+      tags: [Exports]
+      operationId: listExports
+      summary: List export jobs visible to the current user
+      parameters:
+        - $ref: '#/components/parameters/PageNumber'
+      responses:
+        '200':
+          description: Export jobs
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResourceCollection' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
     post:
       tags: [Exports]
       summary: Request CSV export
@@ -404,6 +411,979 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
         '410': { $ref: '#/components/responses/Gone' }
+  /auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logout
+      summary: Revoke the current session
+      responses:
+        '204': { description: Session revoked }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /auth/logout-all:
+    post:
+      tags: [Auth]
+      operationId: logoutAll
+      summary: Revoke all sessions
+      description: The effect on the current session must follow the finalized session-revocation contract.
+      responses:
+        '204': { description: Sessions revoked }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+      x-contract-gap: Current-session behavior is not specified in the machine-readable contract.
+  /account/deletion-requests:
+    post:
+      tags: [Auth]
+      operationId: requestAccountDeletion
+      summary: Request account deletion
+      description: Disable sign-in according to the approved recovery flow.
+      responses:
+        '202': { description: Deletion request accepted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+      x-contract-gap: Request body and accepted response fields are not specified in the catalogue.
+  /account/recovery:
+    post:
+      tags: [Auth]
+      operationId: startAccountRecovery
+      summary: Start account recovery
+      description: Recovery is available within 30 days and requires email verification.
+      responses:
+        '202': { description: Recovery request accepted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '410': { $ref: '#/components/responses/Gone' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+      x-contract-gap: Request body and accepted response fields are not specified in the catalogue.
+  /account/sessions/revoke:
+    post:
+      tags: [Auth]
+      operationId: revokeSessions
+      summary: Revoke selected session or sessions
+      responses:
+        '204': { description: Sessions revoked }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+      x-contract-gap: Session selector request schema is not specified in the catalogue.
+  /account/deletion-requests/{requestId}:
+    parameters:
+      - name: requestId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Auth]
+      operationId: getAccountDeletionRequest
+      summary: Read account deletion or recovery status
+      responses:
+        '200':
+          description: Deletion request status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /account/deletion-requests/{requestId}/cancel:
+    parameters:
+      - name: requestId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Auth]
+      operationId: cancelAccountDeletion
+      summary: Cancel a pending account deletion
+      responses:
+        '200':
+          description: Deletion request cancelled
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '410': { $ref: '#/components/responses/Gone' }
+  /settings:
+    get:
+      tags: [Auth]
+      operationId: getSettings
+      summary: Read user preferences
+      responses:
+        '200':
+          description: User preferences
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    patch:
+      tags: [Auth]
+      operationId: updateSettings
+      summary: Update permitted user preferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SettingsPatch' }
+      responses:
+        '200':
+          description: Updated preferences
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+      x-contract-gap: Preference fields other than the default workspace are not enumerated.
+  /workspaces/{workspaceId}:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+    get:
+      tags: [Workspaces]
+      operationId: getWorkspace
+      summary: Read workspace details
+      responses:
+        '200':
+          description: Workspace details
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Workspace' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Workspaces]
+      operationId: updateWorkspace
+      summary: Update permitted workspace metadata
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkspacePatch' }
+      responses:
+        '200':
+          description: Updated workspace
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Workspace' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+      x-contract-gap: The catalogue does not define which workspace fields may be updated.
+  /workspaces/{workspaceId}/members:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+    get:
+      tags: [Workspaces]
+      operationId: listWorkspaceMembers
+      summary: List active workspace members
+      parameters:
+        - $ref: '#/components/parameters/PageNumber'
+      responses:
+        '200':
+          description: Active members
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResourceCollection' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /workspaces/{workspaceId}/members/{userId}:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - name: userId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [Workspaces]
+      operationId: removeWorkspaceMember
+      summary: Remove a member (owner only)
+      responses:
+        '204': { description: Member removed }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /workspaces/{workspaceId}/invitations:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+    get:
+      tags: [Workspaces]
+      operationId: listWorkspaceInvitations
+      summary: List current invitations
+      parameters:
+        - $ref: '#/components/parameters/PageNumber'
+      responses:
+        '200':
+          description: Safe invitation fields only; never include token_hash
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResourceCollection' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Workspaces]
+      operationId: createWorkspaceInvitation
+      summary: Create a household invitation
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InvitationCreate' }
+      responses:
+        '201':
+          description: Invitation created; bearer token is delivered out of band
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /workspaces/{workspaceId}/invitations/{invitationId}:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - name: invitationId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [Workspaces]
+      operationId: revokeWorkspaceInvitation
+      summary: Revoke an invitation
+      responses:
+        '204': { description: Invitation revoked }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /invitations/{token}/join:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        description: Secret bearer token; redact from logs and analytics.
+        schema: { type: string, minLength: 1 }
+    post:
+      tags: [Workspaces]
+      operationId: joinInvitedWorkspace
+      summary: Join a workspace after verified identity checks
+      responses:
+        '200':
+          description: Joined workspace
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Workspace' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '410': { $ref: '#/components/responses/Gone' }
+  /workspaces/{workspaceId}/ownership-transfer:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+    post:
+      tags: [Workspaces]
+      operationId: transferWorkspaceOwnership
+      summary: Transfer ownership with re-authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OwnershipTransfer' }
+      responses:
+        '200':
+          description: Ownership transferred
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Workspace' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /workspaces/{workspaceId}/deletion-requests:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+    post:
+      tags: [Workspaces]
+      operationId: requestWorkspaceDeletion
+      summary: Start the 30-day workspace recovery window
+      responses:
+        '202': { description: Workspace deletion request accepted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+      x-contract-gap: Confirmation request fields are not specified in the catalogue.
+  /workspaces/{workspaceId}/recovery:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+    post:
+      tags: [Workspaces]
+      operationId: recoverWorkspace
+      summary: Recover a workspace within 30 days
+      responses:
+        '200':
+          description: Workspace recovered for currently authorized members
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Workspace' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '410': { $ref: '#/components/responses/Gone' }
+  /workspaces/{workspaceId}/categories:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+    get:
+      tags: [Categories]
+      operationId: listWorkspaceCategories
+      summary: List built-in and linked-scope categories
+      parameters:
+        - in: query
+          name: transaction_type
+          schema: { type: string }
+          description: Allowed values need reconciliation with SQL category_type.
+        - $ref: '#/components/parameters/PageNumber'
+      responses:
+        '200':
+          description: Categories visible in this workspace
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResourceCollection' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+      x-contract-gap: The catalogue does not specify category filter query parameter names or allowed transaction_type values.
+    post:
+      tags: [Categories]
+      operationId: createWorkspaceCategory
+      summary: Create a custom category in an authorized scope
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CategoryCreate' }
+      responses:
+        '201':
+          description: Category created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+      x-contract-gap: compatible_types in the catalogue does not map explicitly to the SQL category_type enum.
+  /workspaces/{workspaceId}/categories/{categoryId}:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - name: categoryId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      tags: [Categories]
+      operationId: updateWorkspaceCategory
+      summary: Update a custom category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CategoryPatch' }
+      responses:
+        '200':
+          description: Category updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Categories]
+      operationId: permanentlyDeleteCategory
+      summary: Permanently delete an eligible custom category
+      responses:
+        '204': { description: Category deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /workspaces/{workspaceId}/categories/{categoryId}/archive:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - name: categoryId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Categories]
+      operationId: archiveWorkspaceCategory
+      summary: Archive a custom category
+      responses:
+        '200':
+          description: Category archived
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /workspaces/{workspaceId}/categories/{categoryId}/restore:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - name: categoryId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Categories]
+      operationId: restoreWorkspaceCategory
+      summary: Restore an archived custom category
+      responses:
+        '200':
+          description: Category restored
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /workspaces/{workspaceId}/built-in-categories/{categoryId}/visibility:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - name: categoryId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Categories]
+      operationId: setBuiltinCategoryVisibility
+      summary: Set built-in category visibility (owner only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [is_hidden]
+              properties:
+                is_hidden: { type: boolean }
+              additionalProperties: false
+      responses:
+        '200':
+          description: Visibility updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /workspaces/{workspaceId}/transactions/{transactionId}/restore:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - name: transactionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Transactions]
+      operationId: restoreTransaction
+      summary: Restore a transaction and eligible linked refunds
+      responses:
+        '200':
+          description: Transaction restored
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Transaction' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /workspaces/{workspaceId}/transactions/{transactionId}/permanent-delete:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - name: transactionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Transactions]
+      operationId: permanentlyDeleteTransaction
+      summary: Permanently delete a trashed transaction after confirmation
+      responses:
+        '204': { description: Transaction permanently deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+      x-contract-gap: Confirmation request schema is not specified in the catalogue.
+  /workspaces/{workspaceId}/budgets/{yyyy-mm}/rollover:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - name: yyyy-mm
+        in: path
+        required: true
+        schema: { type: string, pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$' }
+    patch:
+      tags: [Budgets]
+      operationId: setBudgetRollover
+      summary: Set non-negative manual rollover
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rollover]
+              properties:
+                rollover: { $ref: '#/components/schemas/Amount' }
+              additionalProperties: false
+      responses:
+        '200':
+          description: Budget summary updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BudgetSummary' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /workspaces/{workspaceId}/savings-funds:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+    get:
+      tags: [Savings]
+      operationId: listSavingsFunds
+      summary: List funds and balances
+      parameters:
+        - $ref: '#/components/parameters/PageNumber'
+      responses:
+        '200':
+          description: Workspace funds
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResourceCollection' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Savings]
+      operationId: createSavingsFund
+      summary: Create a savings fund
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SavingsFundCreate' }
+      responses:
+        '201':
+          description: Fund created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /workspaces/{workspaceId}/savings-funds/{fundId}:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - name: fundId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      tags: [Savings]
+      operationId: updateSavingsFund
+      summary: Rename or update permitted fund fields
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SavingsFundPatch' }
+      responses:
+        '200':
+          description: Fund updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Savings]
+      operationId: softDeleteSavingsFund
+      summary: Move a fund to Trash
+      responses:
+        '204': { description: Fund moved to Trash }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /workspaces/{workspaceId}/savings-funds/{fundId}/restore:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - name: fundId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Savings]
+      operationId: restoreSavingsFund
+      summary: Restore a fund and retained transactions
+      responses:
+        '200':
+          description: Fund restored
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /workspaces/{workspaceId}/savings-funds/{fundId}/transactions:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - name: fundId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Savings]
+      operationId: createSavingsTransaction
+      summary: Add a deposit or withdrawal
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SavingsTransactionCreate' }
+      responses:
+        '201':
+          description: Savings transaction created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /workspaces/{workspaceId}/savings-transactions/{transactionId}:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - name: transactionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [Savings]
+      operationId: softDeleteSavingsTransaction
+      summary: Move a savings transaction to Trash
+      responses:
+        '204': { description: Savings transaction moved to Trash }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /workspaces/{workspaceId}/trackers:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+    get:
+      tags: [Trackers]
+      operationId: listTrackers
+      summary: List active, non-hidden trackers
+      parameters:
+        - $ref: '#/components/parameters/PageNumber'
+      responses:
+        '200':
+          description: Trackers
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResourceCollection' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Trackers]
+      operationId: createTracker
+      summary: Create a tracker
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TrackerCreate' }
+      responses:
+        '201':
+          description: Tracker created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /workspaces/{workspaceId}/trackers/{trackerId}:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - name: trackerId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Trackers]
+      operationId: getTracker
+      summary: Read tracker and totals
+      responses:
+        '200':
+          description: Tracker details
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Trackers]
+      operationId: updateTracker
+      summary: Rename, hide/show, or reopen a tracker
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TrackerPatch' }
+      responses:
+        '200':
+          description: Tracker updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+      x-contract-gap: Reopen request fields are not specified in the catalogue.
+    delete:
+      tags: [Trackers]
+      operationId: softDeleteTracker
+      summary: Move a tracker and its records to Trash
+      responses:
+        '204': { description: Tracker and related records moved to Trash atomically }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /workspaces/{workspaceId}/trackers/{trackerId}/end:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - name: trackerId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Trackers]
+      operationId: endTracker
+      summary: End a tracker and make it read-only
+      responses:
+        '200':
+          description: Tracker ended
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /workspaces/{workspaceId}/trackers/{trackerId}/transactions:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - name: trackerId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Trackers]
+      operationId: createTrackerTransaction
+      summary: Create a tracker expense or refund
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TrackerTransactionCreate' }
+      responses:
+        '201':
+          description: Tracker transaction created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /workspaces/{workspaceId}/trackers/{trackerId}/restore:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - name: trackerId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Trackers]
+      operationId: restoreTracker
+      summary: Restore a tracker and eligible records
+      responses:
+        '200':
+          description: Tracker restored
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /workspaces/{workspaceId}/trash:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+    get:
+      tags: [Trash]
+      operationId: listTrash
+      summary: List trashed workspace records
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - in: query
+          name: cursor
+          schema: { type: string }
+      responses:
+        '200':
+          description: Trash page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResourceCollection' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /workspaces/{workspaceId}/trash/{recordType}/{recordId}/restore:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - name: recordType
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/TrashRecordType' }
+      - name: recordId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Trash]
+      operationId: restoreTrashRecord
+      summary: Restore a supported record type
+      responses:
+        '200':
+          description: Record restored
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /workspaces/{workspaceId}/trash/{recordType}/{recordId}/permanent-delete:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - name: recordType
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/TrashRecordType' }
+      - name: recordId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Trash]
+      operationId: permanentlyDeleteTrashRecord
+      summary: Permanently delete a record after explicit confirmation
+      responses:
+        '204': { description: Record permanently deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+      x-contract-gap: Confirmation request schema and TrashRecordType values require finalization.
+  /workspaces/{workspaceId}/audit-events:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+    get:
+      tags: [Trash]
+      operationId: listAuditEvents
+      summary: List permitted audit history
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - in: query
+          name: cursor
+          schema: { type: string }
+      responses:
+        '200':
+          description: Audit event page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResourceCollection' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /workspaces/{workspaceId}/reports/summary:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+    get:
+      tags: [Budgets]
+      operationId: getWorkspaceReportSummary
+      summary: Read a date-range summary
+      parameters:
+        - $ref: '#/components/parameters/StartDate'
+        - $ref: '#/components/parameters/EndDate'
+      responses:
+        '200':
+          description: Summary report
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Resource' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+      x-contract-gap: The catalogue does not specify report date-range query parameter encoding.
+  /workspaces/{workspaceId}/reports/categories:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+    get:
+      tags: [Budgets]
+      operationId: getCategoryReport
+      summary: Read category breakdown
+      parameters:
+        - $ref: '#/components/parameters/StartDate'
+        - $ref: '#/components/parameters/EndDate'
+        - $ref: '#/components/parameters/PageNumber'
+      responses:
+        '200':
+          description: Category report
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResourceCollection' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+      x-contract-gap: The catalogue does not specify category-report date-range query parameter encoding.
+  /workspaces/{workspaceId}/exports/{exportId}:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - name: exportId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Exports]
+      operationId: getExportStatus
+      summary: Read export job status
+      responses:
+        '200':
+          description: Export status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ExportJob' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
 components:
   securitySchemes:
     sessionCookie:
@@ -426,7 +1406,153 @@ components:
       in: header
       required: false
       schema: { type: string, minLength: 1, maxLength: 128 }
+    PageNumber:
+      name: page_number
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, default: 1 }
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    StartDate:
+      name: start_date
+      in: query
+      required: false
+      schema: { type: string, format: date }
+    EndDate:
+      name: end_date
+      in: query
+      required: false
+      schema: { type: string, format: date }
   schemas:
+    Resource:
+      type: object
+      description: Response fields not specified in the route catalogue remain to be finalized.
+      additionalProperties: true
+    ResourceCollection:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Resource' }
+        page: { $ref: '#/components/schemas/Page' }
+      additionalProperties: false
+    SettingsPatch:
+      type: object
+      minProperties: 1
+      properties:
+        default_workspace_id: { type: [string, 'null'], format: uuid }
+      additionalProperties: false
+    WorkspacePatch:
+      type: object
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+      additionalProperties: false
+    InvitationCreate:
+      type: object
+      required: [email, delivery_method]
+      properties:
+        email: { type: string, format: email, maxLength: 320 }
+        delivery_method: { type: string, const: email }
+      additionalProperties: false
+    OwnershipTransfer:
+      type: object
+      required: [new_owner_user_id, reauth_proof]
+      properties:
+        new_owner_user_id: { type: string, format: uuid }
+        reauth_proof: { type: string, minLength: 1 }
+      additionalProperties: false
+    CategoryCreate:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 30 }
+        description: { type: string, maxLength: 200 }
+        color: { type: string }
+        icon: { type: string }
+        compatible_types:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { type: string }
+      additionalProperties: false
+    CategoryPatch:
+      type: object
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 30 }
+        description: { type: [string, 'null'], maxLength: 200 }
+        color: { type: [string, 'null'] }
+        icon: { type: [string, 'null'] }
+      additionalProperties: false
+    SavingsFundCreate:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 50 }
+      additionalProperties: false
+    SavingsFundPatch:
+      type: object
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 50 }
+      additionalProperties: false
+    SavingsTransactionCreate:
+      type: object
+      required: [type, amount, date]
+      properties:
+        type: { type: string, enum: [deposit, withdrawal] }
+        amount: { $ref: '#/components/schemas/Amount' }
+        date: { type: string, format: date }
+        description: { type: string, maxLength: 50 }
+        notes: { type: string, maxLength: 500 }
+      additionalProperties: false
+    TrackerCreate:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 50 }
+        description: { type: string, maxLength: 200 }
+      additionalProperties: false
+      x-schema-gap: The API catalogue includes description, but public.trackers has no description column.
+    TrackerPatch:
+      type: object
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 50 }
+        is_hidden: { type: boolean }
+        status: { type: string, enum: [active, ended] }
+      additionalProperties: false
+      x-contract-gap: The exact reopen request and permitted status transitions are not specified.
+    TrackerTransactionCreate:
+      type: object
+      required: [type, amount, date, category_id]
+      properties:
+        type: { type: string, enum: [expense, refund] }
+        amount: { $ref: '#/components/schemas/Amount' }
+        date: { type: string, format: date }
+        category_id: { type: string, format: uuid }
+        linked_expense_id: { type: string, format: uuid }
+        description: { type: string, maxLength: 50 }
+        notes: { type: string, maxLength: 500 }
+      additionalProperties: false
+    TrashRecordType:
+      type: string
+      description: The API catalogue requires an enum but does not list its allowed values.
+      x-contract-gap: Finalize the record type enum against supported Trash resources.
+    ExportJob:
+      type: object
+      required: [id, workspace_id, status, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        workspace_id: { type: string, format: uuid }
+        status: { type: string, enum: [pending, running, completed, failed] }
+        created_at: { type: string, format: date-time }
+      additionalProperties: true
     Amount:
       type: string
       pattern: '^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,2})?$'
@@ -439,7 +1565,7 @@ components:
         amount: { $ref: '#/components/schemas/Amount' }
         date: { type: string, format: date }
         category_id: { type: string, format: uuid }
-        label_id: { type: string, format: uuid, nullable: true }
+        label_id: { type: [string, 'null'], format: uuid }
         description: { type: string, maxLength: 50 }
         notes: { type: string, maxLength: 500 }
         linked_expense_id: { type: string, format: uuid }
@@ -629,6 +1755,11 @@ components:
   responses:
     BadRequest:
       description: Malformed or invalid request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Forbidden:
+      description: Authenticated caller is not permitted to perform this operation
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ApiError' }

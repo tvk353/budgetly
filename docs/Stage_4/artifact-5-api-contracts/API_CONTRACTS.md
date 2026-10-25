@@ -97,7 +97,9 @@ Mutation responses include the persisted representation where useful. `204 No Co
 ### 2.5 Amounts, dates, and text
 
 - Monetary amounts are positive decimal strings with at most two fractional digits: `^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,2})?$`; domain endpoints additionally reject zero.
-- No floating-point arithmetic for money. PostgreSQL uses exact numeric types.
+- No floating-point arithmetic for money. PostgreSQL uses exact `numeric(14,2)` values; the UI boundary uses integer paise.
+- Convert an API decimal string to paise by parsing its whole and fractional digit strings, right-padding the fraction to two digits, then calculating `whole_rupees * 100 + fractional_paise`. For example, `"123.4"` maps to `12340` paise and `"123"` maps to `12300` paise. Do not parse through a binary floating-point value.
+- Serialize integer paise to an API decimal string with exactly two fractional digits (for example, `12345` paise becomes `"123.45"`). Reject zero, negative values, and strings with more than two fractional digits according to the positive-amount contract.
 - Currency is `INR` for the initial release and is not client-selectable.
 - Transaction date must be today or earlier in `Asia/Kolkata`.
 - Description: optional, max 50 characters. Notes: optional, max 500 characters.
@@ -299,6 +301,8 @@ Budget request:
 ```
 
 New budget creation is permitted only for the current calendar month in `Asia/Kolkata`. Past budgets can be edited; future budgets cannot be created unless product requirements change. At most one budget per workspace/month. Base budget must be positive; rollover must be zero or positive. Mid-month changes recalculate immediately.
+
+The database draft rejects every `INSERT` outside the current IST month. Therefore, the `PUT` implementation must update an existing past-month row with `UPDATE`; it must not use an insert/upsert path for past months. A missing past-month row remains a rejected creation.
 
 Response includes `base_budget`, `rollover`, `applicable_budget`, `eligible_expenses`, `eligible_refunds`, `net_eligible_expenses`, `available`, and `month`. `available` may be negative. Calculations must use exact numeric arithmetic and the same eligibility rules across dashboard, reports, and exports.
 
