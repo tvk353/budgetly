@@ -257,7 +257,6 @@ Install Chromium before running browser tests:
 
 ```powershell
 pnpm exec playwright install chromium
-pnpm e2e
 ```
 
 Browser tests now require Docker and the local Supabase stack:
@@ -271,6 +270,12 @@ pnpm e2e --workers=1
 This opt-in reads local CLI credentials into the test server environment only;
 it refuses a non-local API URL. Tests create and clean disposable users/workspaces.
 Real OTP tests read only their own Mailpit messages. CI starts its own local stack.
+
+The pre-push hook runs the production build, then enables
+`BUDGETLY_LOCAL_AUTH_TESTS=1` for Playwright with one worker. Start the local
+Supabase stack before pushing; the hook does not start, reset, or migrate it.
+This ensures the test server uses port 3100 as its origin instead of inheriting
+the development origin from `.env.local`. Do not bypass the hook to hide failures.
 
 On Linux, install browser system dependencies with
 `pnpm exec playwright install --with-deps chromium`.
