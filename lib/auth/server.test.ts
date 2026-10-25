@@ -2,6 +2,7 @@
 import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { logout, requestOtp, verifyOtp } from '@/lib/auth/server';
+import { POST } from '@/app/api/v1/auth/otp/request/route';
 vi.mock('server-only', () => ({}));
 const mocks = vi.hoisted(() => ({
   gate: vi.fn(),
@@ -53,6 +54,160 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe('server OTP boundaries', () => {
+  it.each([
+    ['PGRST202', 404, 'PGRST202'],
+    ['42501', 403, '42501'],
+    ['private-provider-detail@example.test', 500, 'unclassified'],
+  ])(
+    'logs a failed limiter with the response request ID and safe code %s',
+    async (code, status, safeCode) => {
+      const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+      try {
+        mocks.gate.mockResolvedValue({
+          data: null,
+          status,
+          error: { code, message: 'secret-provider-body', details: 'secret-sql-details' },
+        });
+        const response = await POST(request({ email: 'private-person@example.test' }));
+        const body = await response.json();
+        expect(response.status).toBe(503);
+        expect(body.error.code).toBe('AUTH_UNAVAILABLE');
+        expect(log).toHaveBeenCalledExactlyOnceWith('Budgetly API failure', {
+          request_id: body.error.request_id,
+          code: 'AUTH_UNAVAILABLE',
+          stage: 'otp_limiter',
+          operation: 'request',
+          provider_code: safeCode,
+          provider_status: status,
+        });
+        const output = JSON.stringify([body, log.mock.calls]);
+        for (const sensitive of [
+          'private-person',
+          'private-provider-detail',
+          'secret-provider-body',
+          'secret-sql-details',
+          'sb_secret_test',
+        ]) {
+          expect(output).not.toContain(sensitive);
+        }
+        expect(body.error).not.toHaveProperty('stage');
+        expect(body.error).not.toHaveProperty('provider_code');
+        expect(mocks.request).not.toHaveBeenCalled();
+      } finally {
+        log.mockRestore();
+      }
+    },
+  );
+  it.each([
+    ['source', 'request_source'],
+    ['shape', 'otp_limiter_response'],
+    ['send', 'otp_send'],
+  ])('distinguishes %s failures in request-correlated logs', async (failure, stage) => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      if (failure === 'source') vi.stubEnv('VERCEL', '1');
+      if (failure === 'shape')
+        mocks.gate.mockResolvedValue({ data: { allowed: 'true' }, error: null, status: 200 });
+      if (failure === 'send')
+        mocks.request.mockResolvedValue({
+          error: {
+            code: 'email_address_not_authorized',
+            status: 403,
+            message: 'secret-smtp-detail',
+          },
+        });
+      const response = await POST(request({ email: 'private-person@example.test' }));
+      const body = await response.json();
+      expect(response.status).toBe(503);
+      expect(log).toHaveBeenCalledExactlyOnceWith(
+        'Budgetly API failure',
+        expect.objectContaining({
+          request_id: body.error.request_id,
+          code: 'AUTH_UNAVAILABLE',
+          stage,
+          operation: 'request',
+        }),
+      );
+      if (failure === 'send') {
+        expect(log.mock.calls[0][1]).toMatchObject({
+          provider_code: 'email_address_not_authorized',
+          provider_status: 403,
+        });
+      } else {
+        expect(mocks.request).not.toHaveBeenCalled();
+      }
+      expect(JSON.stringify([body, log.mock.calls])).not.toMatch(
+        /private-person|secret-smtp-detail/,
+      );
+      expect(mocks.set).not.toHaveBeenCalled();
+    } finally {
+      log.mockRestore();
+    }
+  });
+  const productionOrigin = 'https://budgetly-eta-nine.vercel.app';
+  function productionRequest(origin: string | undefined) {
+    const headers = new Headers({
+      'content-type': 'application/json',
+      host: 'internal-proxy.invalid',
+      'x-forwarded-host': 'budgetly-eta-nine.vercel.app',
+      'x-forwarded-proto': 'https',
+      'x-vercel-forwarded-for': '192.0.2.1',
+    });
+    if (origin !== undefined) headers.set('origin', origin);
+    return new NextRequest('http://internal-proxy.invalid/api/v1/auth/otp/request', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ email: 'person@example.test' }),
+    });
+  }
+  it('accepts the configured HTTPS origin behind Vercel without trusting the internal host', async () => {
+    vi.stubEnv('VERCEL', '1');
+    vi.stubEnv('APP_ORIGIN', productionOrigin);
+    await requestOtp(productionRequest(productionOrigin));
+    expect(mocks.request).toHaveBeenCalledOnce();
+    expect(mocks.gate).toHaveBeenCalledWith(
+      'consume_otp_limit',
+      expect.objectContaining({
+        ip_hash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      }),
+    );
+  });
+  it.each([
+    ['missing Origin', undefined, productionOrigin],
+    ['opaque Origin', 'null', productionOrigin],
+    ['foreign Origin', 'https://untrusted.example', productionOrigin],
+    ['deployment alias Origin', 'https://budgetly-preview.vercel.app', productionOrigin],
+    ['request URL used as Origin', `${productionOrigin}/api/v1/auth/otp/request`, productionOrigin],
+    ['trailing slash in APP_ORIGIN', productionOrigin, `${productionOrigin}/`],
+    ['development APP_ORIGIN', productionOrigin, 'http://127.0.0.1:3000'],
+  ])(
+    'rejects %s even when forwarded host matches the trusted domain',
+    async (_, origin, appOrigin) => {
+      vi.stubEnv('VERCEL', '1');
+      vi.stubEnv('APP_ORIGIN', appOrigin);
+      await expect(requestOtp(productionRequest(origin))).rejects.toMatchObject({
+        status: 403,
+        code: 'FORBIDDEN',
+        message: 'Use Budgetly to submit this request.',
+      });
+      expect(mocks.gate).not.toHaveBeenCalled();
+      expect(mocks.request).not.toHaveBeenCalled();
+      expect(mocks.set).not.toHaveBeenCalled();
+    },
+  );
+  it('reports missing Vercel client IP separately after a valid origin check', async () => {
+    vi.stubEnv('VERCEL', '1');
+    vi.stubEnv('APP_ORIGIN', productionOrigin);
+    const incoming = productionRequest(productionOrigin);
+    incoming.headers.delete('x-vercel-forwarded-for');
+    await expect(requestOtp(incoming)).rejects.toMatchObject({
+      status: 503,
+      code: 'AUTH_UNAVAILABLE',
+      message: 'Unable to validate the request source.',
+    });
+    expect(mocks.gate).not.toHaveBeenCalled();
+    expect(mocks.request).not.toHaveBeenCalled();
+  });
   it.each([
     ['APP_ORIGIN', ''],
     ['SUPABASE_SECRET_KEY', ''],

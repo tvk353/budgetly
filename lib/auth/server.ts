@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import type { NextRequest } from 'next/server';
 
-import { ApiError } from '@/lib/api/errors';
+import { ApiError, authFailureDiagnostics } from '@/lib/api/errors';
 import { getSupabaseConfig } from '@/lib/supabase/config';
 import type { Database } from '@/lib/supabase/database.types';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
@@ -72,12 +72,19 @@ async function gate(
     process.env.VERCEL === '1'
       ? request.headers.get('x-vercel-forwarded-for')?.split(',')[0]?.trim()
       : 'local';
-  if (!ip) throw new ApiError(503, 'AUTH_UNAVAILABLE', 'Unable to validate the request source.');
+  if (!ip)
+    throw new ApiError(
+      503,
+      'AUTH_UNAVAILABLE',
+      'Unable to validate the request source.',
+      undefined,
+      authFailureDiagnostics('request_source', operation),
+    );
   const hash = (value: string) => createHmac('sha256', hashSecret).update(value).digest('hex');
   const admin = createClient<Database>(url, secret, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
-  const { data, error } = await admin.rpc('consume_otp_limit', {
+  const { data, error, status } = await admin.rpc('consume_otp_limit', {
     operation,
     email_hash: hash(email),
     ip_hash: hash(ip),
@@ -90,7 +97,18 @@ async function gate(
     Array.isArray(data) ||
     typeof data.allowed !== 'boolean'
   ) {
-    throw new ApiError(503, 'AUTH_UNAVAILABLE', 'Authentication is temporarily unavailable.');
+    throw new ApiError(
+      503,
+      'AUTH_UNAVAILABLE',
+      'Authentication is temporarily unavailable.',
+      undefined,
+      authFailureDiagnostics(
+        error ? 'otp_limiter' : 'otp_limiter_response',
+        operation,
+        error?.code,
+        status,
+      ),
+    );
   }
   if (!data.allowed) {
     if (operation === 'verify') throw invalidCode();
@@ -116,7 +134,13 @@ export async function requestOtp(request: NextRequest) {
   if (error) {
     if (error.status === 429)
       throw new ApiError(429, 'RATE_LIMITED', 'Please wait before requesting another code.', 60);
-    throw new ApiError(503, 'AUTH_UNAVAILABLE', 'Unable to send a code. Please try again later.');
+    throw new ApiError(
+      503,
+      'AUTH_UNAVAILABLE',
+      'Unable to send a code. Please try again later.',
+      undefined,
+      authFailureDiagnostics('otp_send', 'request', error.code, error.status),
+    );
   }
   const store = await cookies();
   store.set(challengeCookie, challenge, {

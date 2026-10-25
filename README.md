@@ -136,6 +136,39 @@ For local service diagnosis, check `supabase_auth_budgetly` container health and
 the local `/auth/v1/health` endpoint using the publishable key without logging it.
 Do not weaken validation or reset the database to fix a missing environment file.
 
+`403 FORBIDDEN: Use Budgetly to submit this request.` means the request's
+`Origin` header is missing or does not exactly equal the running deployment's
+`APP_ORIGIN`. Compare DevTools Request Headers **Origin**, not Request URL, with
+the variable in the correct Vercel environment scope. Origins contain only scheme,
+host, and optional port: no path, trailing slash, or surrounding quotes.
+Use the canonical domain rather than an alternate deployment/preview hostname.
+After correcting Vercel variables, create a new deployment to load them.
+Host and forwarded-host headers do not override the configured CSRF boundary.
+Missing `x-vercel-forwarded-for` with `VERCEL=1` instead produces a separate
+`503 AUTH_UNAVAILABLE` after the origin check; it cannot cause this `403`.
+
+For OTP request `503 AUTH_UNAVAILABLE`, correlate the response's `request_id`
+with the `Budgetly API failure` server log. The log includes a safe `stage`,
+`operation`, and, when available, an allowlisted `provider_code` and HTTP status:
+
+- `request_source`: `VERCEL=1` but the trusted client-IP header is missing.
+  Check the actual Vercel proxy path; do not trust arbitrary forwarded headers.
+- `otp_limiter`: the `consume_otp_limit` RPC failed. `PGRST202` means function
+  lookup/schema-cache failure; `42501` means permissions denied. Verify the
+  hosted migrations, function signature/grants, API schema, and matching project
+  URL/server key before deciding whether a reviewed migration is needed.
+- `otp_limiter_response`: the RPC returned no valid boolean `allowed` field.
+  Verify the deployed RPC contract; no Auth send was attempted.
+- `otp_send`: the limiter passed but Supabase Auth rejected sending.
+  Check hosted Auth/SMTP configuration and Auth logs. For example,
+  `email_address_not_authorized` indicates recipient authorization restrictions.
+
+Unknown provider codes are logged as `unclassified`; raw provider messages,
+details, hints, responses, emails, IPs, cookies, challenges, and keys are never
+included. Diagnostic fields remain server-only; public error messages stay generic.
+This code distinguishes causes but cannot prove hosted settings or migration
+state without corresponding production evidence.
+
 Implemented routes:
 
 - `GET /api/v1/workspaces?page_number=1&limit=20`: page-number collection,
