@@ -116,7 +116,7 @@ test('a selected Household disappears immediately after membership removal and r
       insert into public.workspace_members(workspace_id,user_id,role) values('${workspaceId}','${newOwner}','owner');
       update public.workspace_members set status='removed',removed_at=now() where workspace_id='${workspaceId}' and user_id='${userId}';
       commit;`);
-    expect((await client.rpc('ensure_personal_workspace')).error).toBeNull();
+    expect((await client.rpc('ensure_household_workspace')).error?.code).toBe('42501');
     expect((await page.request.get(`/api/v1/workspaces/${workspaceId}`)).status()).toBe(404);
     await page.reload();
     await expect(page).toHaveURL(/\/workspaces$/);
@@ -166,9 +166,7 @@ test.describe('Personal-first onboarding', () => {
     await page.goto('/workspaces');
     const button = page.getByRole('button', { name: 'Choose Personal workspace' });
     await expect(button.getByText('Default workspace')).toBeVisible();
-    await expect(
-      page.getByText(/Household creation and invitation joining are not available/),
-    ).toBeVisible();
+    await expect(page.getByText(/Household setup is limited to the shared account/)).toBeVisible();
     expect(
       localDatabase(
         `select count(*) from public.workspace_members m join public.workspaces w on w.id=m.workspace_id where m.user_id='${workspaceIdentity.userId}' and w.type='household'`,

@@ -26,7 +26,7 @@ export function VerificationForm({ email }: { email?: string }) {
     try {
       await authRequest('otp/verify', { email: address, otp: code });
       // A full navigation discards any previously cached authenticated RSC payloads.
-      navigateAfterAuth('/workspaces');
+      navigateAfterAuth('/workspace/household');
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Unable to verify the code.');
     } finally {

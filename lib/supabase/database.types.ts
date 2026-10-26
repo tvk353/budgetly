@@ -90,6 +90,7 @@ export type Database = {
         Returns: { allowed: boolean; retry_after?: number };
       };
       ensure_personal_workspace: { Args: never; Returns: undefined };
+      ensure_household_workspace: { Args: never; Returns: string };
     };
     Enums: { [_ in never]: never };
     CompositeTypes: { [_ in never]: never };

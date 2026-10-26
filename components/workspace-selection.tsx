@@ -129,9 +129,9 @@ export function WorkspaceSelection() {
         workspaces.some((workspace) => workspace.type === 'personal') &&
         !workspaces.some((workspace) => workspace.type === 'household') && (
           <p className="mt-4 rounded-2xl bg-[var(--color-light-teal)] p-4 text-sm text-[var(--color-main-text)]">
-            Your Personal workspace is ready. Household creation and invitation joining are not
-            available yet. Existing Household workspaces appear only when you have active
-            membership.
+            Your Personal workspace is ready. Household setup is limited to the shared account.
+            Other accounts need an existing active Household membership; invitation joining is not
+            available yet.
           </p>
         )}
       <SignOutButton />

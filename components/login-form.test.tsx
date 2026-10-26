@@ -12,7 +12,9 @@ beforeEach(() => {
 describe('LoginForm', () => {
   it('requests a normalized email OTP before navigating', async () => {
     render(<LoginForm />);
-    expect(screen.getByLabelText('Email address')).toHaveValue('');
+    expect(screen.getByLabelText('Email address')).toHaveValue('priyavinod.t@gmail.com');
+    expect(mocks.request).not.toHaveBeenCalled();
+    expect(mocks.push).not.toHaveBeenCalled();
     fireEvent.change(screen.getByLabelText('Email address'), {
       target: { value: 'Person@Example.test' },
     });

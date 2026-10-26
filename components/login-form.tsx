@@ -8,7 +8,7 @@ import { authRequest } from '@/lib/auth/client';
 
 export function LoginForm() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState('priyavinod.t@gmail.com');
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
 

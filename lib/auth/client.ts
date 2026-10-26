@@ -11,6 +11,6 @@ export async function authRequest(path: string, body?: Record<string, string>) {
   }
 }
 
-export function navigateAfterAuth(path: '/' | '/workspaces') {
+export function navigateAfterAuth(path: '/' | '/workspace/household') {
   window.location.assign(path);
 }

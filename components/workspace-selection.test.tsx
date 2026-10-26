@@ -48,7 +48,7 @@ describe('WorkspaceSelection', () => {
     expect(within(button).getByText('Default workspace')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Our home/ })).not.toBeInTheDocument();
     expect(
-      screen.getByText(/Household creation and invitation joining are not available/),
+      screen.getByText(/Household setup is limited to the shared account/),
     ).toBeInTheDocument();
   });
 

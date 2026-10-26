@@ -3,6 +3,7 @@ import { NextRequest } from 'next/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { logout, requestOtp, verifyOtp } from '@/lib/auth/server';
 import { POST } from '@/app/api/v1/auth/otp/request/route';
+import { POST as verifyPost } from '@/app/api/v1/auth/otp/verify/route';
 vi.mock('server-only', () => ({}));
 const mocks = vi.hoisted(() => ({
   gate: vi.fn(),
@@ -46,7 +47,7 @@ beforeEach(() => {
   mocks.gate.mockResolvedValue({ data: { allowed: true }, error: null });
   mocks.request.mockResolvedValue({ error: null });
   mocks.verify.mockResolvedValue({ data: { user: { id: 'verified' }, session: {} }, error: null });
-  mocks.provision.mockResolvedValue({ error: null });
+  mocks.provision.mockResolvedValue({ data: challenge, error: null });
   mocks.signOut.mockResolvedValue({ error: null });
   mocks.getUser.mockResolvedValue({ data: { user: { id: 'verified' } }, error: null });
   mocks.get.mockReturnValue({ value: challenge });
@@ -280,15 +281,20 @@ describe('server OTP boundaries', () => {
     await verifyOtp(request({ email: 'person@example.test', otp: '123456' }));
     expect(mocks.set).toHaveBeenCalledWith(
       'budgetly-workspace',
-      '',
-      expect.objectContaining({ httpOnly: true, path: '/', maxAge: 0 }),
+      challenge,
+      expect.objectContaining({
+        httpOnly: true,
+        path: '/',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 365,
+      }),
     );
     expect(mocks.verify).toHaveBeenCalledWith({
       email: 'person@example.test',
       token: '123456',
       type: 'email',
     });
-    expect(mocks.provision).toHaveBeenCalledWith('ensure_personal_workspace');
+    expect(mocks.provision).toHaveBeenCalledExactlyOnceWith('ensure_household_workspace');
     expect(mocks.gate).toHaveBeenLastCalledWith(
       'consume_otp_limit',
       expect.objectContaining({ operation: 'complete' }),
@@ -327,6 +333,28 @@ describe('server OTP boundaries', () => {
       verifyOtp(request({ email: 'person@example.test', otp: '123456' })),
     ).rejects.toMatchObject({ status: 403 });
     expect(mocks.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    expect(mocks.set).not.toHaveBeenCalled();
+  });
+  it.each([null, '', 'not-a-workspace'])(
+    'rejects invalid provisioning results (%s) and revokes the session',
+    async (data) => {
+      mocks.provision.mockResolvedValue({ data, error: null });
+      const response = await verifyPost(request({ email: 'person@example.test', otp: '123456' }));
+      expect(response.status).toBe(503);
+      expect(mocks.signOut).toHaveBeenCalledWith({ scope: 'local' });
+      expect(mocks.set).not.toHaveBeenCalled();
+    },
+  );
+  it('returns success only after Household provisioning and replaces an old Personal preference', async () => {
+    const response = await verifyPost(request({ email: 'priyavinod.t@gmail.com', otp: '123456' }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ authenticated: true });
+    expect(mocks.provision).toHaveBeenCalledExactlyOnceWith('ensure_household_workspace');
+    expect(mocks.set).toHaveBeenCalledWith(
+      'budgetly-workspace',
+      challenge,
+      expect.objectContaining({ httpOnly: true }),
+    );
   });
   it('requires same-origin JSON and rejects caller-supplied user identity', async () => {
     await expect(
