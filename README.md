@@ -28,7 +28,7 @@ The first backend slice adds local Supabase configuration, a limited workspace
 schema/RLS migration, cookie-based SSR session validation, and authenticated
 workspace read APIs. Login, verification, logout and protected pages use real
 sessions; financial screens still display sample data. Transaction persistence,
-household provisioning/invitations, refund workflows, Trash recovery, exports, backups,
+household invitations, refund workflows, Trash recovery, exports, backups,
 and PWA app-lock remain unimplemented. See the
 [implementation handoff](docs/AI_HANDOFF.md) for details.
 
@@ -193,26 +193,53 @@ they do not trust Proxy or client user IDs.
 Local emails are delivered to Mailpit at <http://127.0.0.1:54324>, not to a real
 inbox. Enter an email on `/`, copy the six-digit code from Mailpit, and verify on
 `/verify`. No demo email/code is accepted. First verified login atomically
-creates an active profile, category scope and private Personal workspace.
-It never grants Household membership; a trusted local SQL transaction is still
-needed to create a household and initial owner or add a test household member.
-The selector loads real workspace names and IDs through the authenticated API,
+provisions Household access and preserves the private Personal workspace.
+
+The login screen is prefilled with `priyavinod.t@gmail.com`, but the address is
+editable and an OTP is sent only after selecting **Continue**. In the current
+hosted setup, only this address is authorized to receive OTPs through Resend;
+other recipients may be rejected until a sending domain is verified and
+configured with Resend. The free Vercel hostname is the app URL and does not
+itself authorize email recipients.
+
+After successful verification, the server calls `ensure_household_workspace()`
+using the authenticated user client. Only the verified shared account
+`priyavinod.t@gmail.com` can automatically create a Household; it becomes the
+creator and active owner. Other accounts must already have active Household
+membership or verification returns `403 ACCOUNT_UNAVAILABLE` and closes the new
+session. Identity and email come from Auth in PostgreSQL, never request user IDs
+or editable metadata. No other account is automatically joined to the shared Household.
+Successful verification selects that exact Household and navigates directly to
+`/workspace/household`, without showing the selector.
+
+The selector remains available for explicitly switching to Personal. It loads
+real workspace names and IDs through the authenticated API,
 including all pages, rather than deduplicating memberships by type. Household is
 the default only with active Household membership; otherwise Personal is the
 default. The exact selection persists across the existing routes and reloads.
 Every protected workspace page rechecks membership; a removed, deleted, foreign,
 or malformed selection redirects to the selector rather than silently switching
-workspaces. Login/logout clear the previous account's preference. The cookie is
+workspaces. Login replaces the previous account's preference with the authorized
+Household; logout clears it. The cookie is
 never an authorization credential.
 
-**Onboarding boundary:** Personal provisioning locks the verified user's Auth row,
-so overlapping first-login calls serialize without creating duplicate profiles,
-scopes or Personal workspaces. Household creation and joining remain unavailable:
-the live schema has no invitation table, hashed-token lifecycle/delivery, or trusted
-create/revoke/join transaction implementing the approved seven-day, email-bound
-invitation rules. This slice uses the Personal-first fallback; it never creates
-Household memberships automatically. Existing authorized Households are loaded.
+**Onboarding boundary:** Household provisioning locks the verified user's Auth row,
+so overlapping calls serialize without duplicate profiles, scopes, workspaces or
+memberships. A private mapping with unique user/workspace constraints pins the
+shared account's provisioned Household. An existing Household created by that
+account is adopted only with active ownership. Deleted Households, transferred
+ownership and removed memberships are never restored or replaced on login.
+The existing Personal workspace, membership and data are not moved or renamed.
+Ordinary multi-Household membership remains supported; this is not a general
+Household-creation or invitation API. Invitation joining remains unimplemented:
+there is no invitation table or trusted seven-day, email-bound token lifecycle.
 Financial screens remain explicitly sample-only; no expense persistence is added.
+
+The new migration is
+[`20261026000100_household_provisioning.sql`](supabase/migrations/20261026000100_household_provisioning.sql).
+Review and apply it to the intended database with explicit approval before
+rolling out the updated OTP handler. Without the RPC, setup fails closed with
+`503 DATABASE_UNAVAILABLE`. Do not apply production migrations as part of tests.
 
 `POST /api/v1/auth/otp/request` and `/otp/verify` use same-origin JSON. The server
 enforces a five-minute browser-bound challenge, three attempts, 60-second resend
@@ -303,6 +330,10 @@ pnpm e2e --workers=1
 This opt-in reads local CLI credentials into the test server environment only;
 it refuses a non-local API URL. Tests create and clean disposable users/workspaces.
 Real OTP tests read only their own Mailpit messages. CI starts its own local stack.
+The fresh-shared-account OTP scenario skips if `priyavinod.t@gmail.com` already
+exists locally, rather than modifying or deleting it. Run that scenario on a
+fresh disposable stack for full coverage. Database provisioning/concurrency tests
+use UUID-scoped fixtures and leave the existing shared account untouched.
 
 The pre-push hook runs the production build, then enables
 `BUDGETLY_LOCAL_AUTH_TESTS=1` for Playwright with one worker. Start the local

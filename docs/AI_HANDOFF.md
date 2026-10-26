@@ -1,20 +1,26 @@
 # AI Handoff
 
-## Current Backend Status (2026-10-25)
+## Current Backend Status (2026-10-26)
 
 - Email OTP login, verification, logout, protected pages, and workspace
   reads now use real Supabase Auth and database-enforced authorization.
   Financial screens and transaction/category/label changes remain sample-only.
-- First verified login atomically provisions an active profile, category scope,
-  and Personal workspace. Retries and concurrent first logins do not duplicate
-  provisioning. Unverified identities and deleted profiles cannot provision.
-- Household creation and invitation joining are not implemented. Existing active
-  Household memberships are loaded; Household is the default when available,
-  otherwise Personal is used. Do not create Household membership during login.
+- Verified OTP login calls the authenticated `ensure_household_workspace()` RPC.
+  Only `priyavinod.t@gmail.com` can automatically create a Household, as its
+  active owner; other users need existing active Household membership. Missing
+  membership fails closed and revokes the newly established session.
+- Provisioning serializes on the verified Auth row and uses a private unique
+  onboarding mapping. It preserves Personal and its scope/membership, adopts an
+  existing owned Household, and never restores removed/deleted access or transferred
+  ownership. Invitation joining and general-purpose creation remain unimplemented.
+- Successful OTP verification selects the authorized Household and navigates directly
+  to `/workspace/household`. The selector remains available for explicit switching.
+  Migration `20261026000100_household_provisioning.sql` is required before rollout;
+  its presence is not evidence of production application or test success.
 - Workspace selection uses real names and IDs and persists the exact selection
   in an HttpOnly cookie across routes and reloads. Each protected page rechecks
   membership; removed, deleted, foreign, or malformed selections cannot grant
-  access. Login/logout clear the previous selection.
+  access. Login replaces the previous selection with Household; logout clears it.
 - Logout revokes the current refresh token and clears session cookies. Already
   issued access JWTs can remain valid until expiry; logout-all, immediate
   stolen-token revocation, and account lifecycle flows remain unimplemented.

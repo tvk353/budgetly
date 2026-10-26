@@ -170,14 +170,37 @@ export async function verifyOtp(request: NextRequest) {
   if (!data.user || !data.session) throw invalidCode();
   try {
     await gate(request, email, 'complete', challenge);
-    const { error: provisionError } = await supabase.rpc('ensure_personal_workspace');
+    const { data: workspaceId, error: provisionError } = await supabase.rpc(
+      'ensure_household_workspace',
+    );
     if (provisionError) {
       console.error('Budgetly account provisioning failed', { code: provisionError.code });
       if (provisionError.code === '42501') {
-        throw new ApiError(403, 'ACCOUNT_UNAVAILABLE', 'Unable to open this Budgetly account.');
+        throw new ApiError(
+          403,
+          'ACCOUNT_UNAVAILABLE',
+          'An active Household membership is required to open this account.',
+        );
       }
       throw new ApiError(503, 'DATABASE_UNAVAILABLE', 'Account setup is temporarily unavailable.');
     }
+    if (
+      !workspaceId ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(workspaceId)
+    ) {
+      throw new ApiError(
+        503,
+        'DATABASE_UNAVAILABLE',
+        'Account setup returned an invalid workspace.',
+      );
+    }
+    store.set(selectedWorkspaceCookie, workspaceId, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: request.nextUrl.protocol === 'https:',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 365,
+    });
   } catch (error) {
     const { error: signOutError } = await supabase.auth.signOut({ scope: 'local' });
     if (signOutError)
@@ -191,7 +214,6 @@ export async function verifyOtp(request: NextRequest) {
     path: '/',
     maxAge: 0,
   });
-  store.set(selectedWorkspaceCookie, '', { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 0 });
 }
 
 export async function logout(request: NextRequest) {

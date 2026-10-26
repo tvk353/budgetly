@@ -18,23 +18,24 @@ describe('VerificationForm', () => {
     expect(screen.getByLabelText('Verification code')).toHaveValue('');
     fireEvent.change(screen.getByLabelText('Verification code'), { target: { value: '123456' } });
     fireEvent.click(screen.getByRole('button', { name: 'Verify email' }));
-    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/workspaces'));
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/workspace/household'));
     expect(mocks.request).toHaveBeenCalledWith('otp/verify', {
       email: 'person@example.test',
       otp: '123456',
     });
   });
-  it.each(['The code is invalid or expired.', 'Authentication is temporarily unavailable.'])(
-    'shows verification errors without navigating: %s',
-    async (message) => {
-      mocks.request.mockRejectedValue(new Error(message));
-      render(<VerificationForm email="person@example.test" />);
-      fireEvent.change(screen.getByLabelText('Verification code'), { target: { value: '123456' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Verify email' }));
-      expect(await screen.findByRole('alert')).toHaveTextContent(message);
-      expect(mocks.navigate).not.toHaveBeenCalled();
-    },
-  );
+  it.each([
+    'The code is invalid or expired.',
+    'Authentication is temporarily unavailable.',
+    'An active Household membership is required to open this account.',
+  ])('shows verification errors without navigating: %s', async (message) => {
+    mocks.request.mockRejectedValue(new Error(message));
+    render(<VerificationForm email="person@example.test" />);
+    fireEvent.change(screen.getByLabelText('Verification code'), { target: { value: '123456' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Verify email' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(message);
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
   it('rejects malformed codes locally', () => {
     render(<VerificationForm email="person@example.test" />);
     fireEvent.change(screen.getByLabelText('Verification code'), { target: { value: '123' } });
